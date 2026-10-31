@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fadeOpeningAudio, releaseOpeningAudio, startOpeningAudio } from "./audio";
+import {
+  armOpeningAudio,
+  fadeOpeningAudio,
+  listenOpeningAudio,
+  releaseOpeningAudio,
+  startOpeningAudio,
+} from "./audio";
 import { LINES, LINE_MS, OPENING_MS, REDUCED_MS, SEEN_KEY } from "./assets";
 import { Mark } from "./mark";
 
@@ -24,6 +30,8 @@ export function Opening({ onDone }: { onDone: () => void }) {
   const shift = useOpeningShift();
   const [returning, setReturning] = useState(false);
   const [leave, setLeave] = useState(false);
+  const [needSound, setNeedSound] = useState(false);
+  const [touch, setTouch] = useState(false);
   const finished = useRef(false);
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -34,6 +42,8 @@ export function Opening({ onDone }: { onDone: () => void }) {
     } catch {
       setReturning(false);
     }
+    setTouch(window.matchMedia("(pointer: coarse)").matches);
+    const stop = listenOpeningAudio(setNeedSound);
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     startOpeningAudio(startedAt, reduce);
     const total = reduce ? REDUCED_MS : OPENING_MS;
@@ -47,6 +57,7 @@ export function Opening({ onDone }: { onDone: () => void }) {
     return () => {
       window.clearTimeout(hold);
       window.clearTimeout(cap);
+      stop();
       releaseOpeningAudio();
     };
   }, [shift]);
@@ -76,10 +87,18 @@ export function Opening({ onDone }: { onDone: () => void }) {
         <Mark />
         <div className="opening-word">
           <h1>Trustless</h1>
-          <p>Trust No One. Verify Everything.</p>
+          <p>
+            <span className="opening-warn">Trust No One.</span>{" "}
+            <span className="opening-vow">Verify Everything.</span>
+          </p>
         </div>
         <Loader />
       </div>
+      {needSound ? (
+        <button className="opening-sound" type="button" onClick={armOpeningAudio}>
+          {touch ? "Tap for sound" : "Click for sound"}
+        </button>
+      ) : null}
       {returning ? (
         <button className="opening-skip" type="button" onClick={() => setLeave(true)}>
           Skip
