@@ -132,20 +132,22 @@ input:focus-visible {
 
 .opening-word h1 {
   margin: 0;
-  font-family: var(--font-opening), "Arial Narrow", sans-serif;
-  font-weight: 700;
-  font-size: clamp(52px, 9vw, 76px);
-  line-height: 0.84;
-  letter-spacing: 0.045em;
-  animation: word-in 0.9s ease calc(8.4s + var(--shift)) both;
+  font-family: var(--font-display), "Palatino Linotype", Palatino, serif;
+  font-weight: 400;
+  font-style: normal;
+  font-size: clamp(44px, 5.6vw, 58px);
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  animation: word-in 0.7s ease calc(6.85s + var(--shift)) both;
 }
 
 .opening-word p {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   font-size: clamp(12px, 2.2vw, 14px);
-  letter-spacing: 0.14em;
-  color: #b7b1a6;
-  animation: word-in 0.9s ease calc(8.9s + var(--shift)) both;
+  letter-spacing: 0.12em;
+  color: #e0d9cf;
+  animation: word-in 0.7s ease calc(7.2s + var(--shift)) both;
 }
 
 .opening-loader {
@@ -153,11 +155,27 @@ input:focus-visible {
   text-align: center;
 }
 
+.opening-loader-meta {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #a39c93;
+}
+
+.opening-loader-meta span:last-child {
+  letter-spacing: 0.16em;
+  color: #c8c1b6;
+}
+
 .opening-loader-line {
-  width: 64px;
+  width: 120px;
   height: 1px;
-  margin: 10px auto 0;
-  background: rgba(197, 206, 216, 0.22);
+  margin: 8px auto 0;
+  background: rgba(224, 217, 207, 0.16);
 }
 
 .opening-loader-line span {
@@ -169,12 +187,12 @@ input:focus-visible {
 }
 
 .opening-line {
-  margin: 0;
+  margin: 5px 0 0;
   min-height: 1.2em;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  color: #9aa3ad;
-  animation: word-in 0.4s ease both;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: #d9d3cb;
+  animation: word-in 0.45s ease both;
 }
 
 .opening-skip {
@@ -206,7 +224,7 @@ input:focus-visible {
 @keyframes word-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
@@ -231,7 +249,7 @@ input:focus-visible {
 
 @media (max-width: 720px) {
   .opening-word h1 {
-    letter-spacing: 0.03em;
+    letter-spacing: 0.1em;
   }
 
   .opening-word p {

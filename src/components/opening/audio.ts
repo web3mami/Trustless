@@ -1,20 +1,18 @@
 /**
  * Timeline for the launch plate. Volumes live here, not in the loader.
+ * Files live in public/opening/audio/. Loops stay up for the whole plate.
+ * A loading-line change only plays tick.wav. It does not restart the bed.
  *
- * Drop these files in public/opening/audio/ when they exist.
- * Missing files are skipped. Nothing here is synthesized.
+ * night.wav    loop, soft night air, from the start
+ * drone.wav    loop, light wind and a low tone with the moon
+ * village.wav  loop, faint forest, then ducks when the wolf arrives
+ * breath.wav   loop, quiet heavy breathing as the werewolf appears
+ * growl.wav    one restrained low growl with that reveal
+ * scrape.wav   one soft scrape as the claws settle
+ * title.wav    one low, short tone as the word appears
+ * tick.wav     a tiny muted pulse as each loading line changes
  *
- * night.mp3    loop, near silence and a trace of night, from the start
- * drone.mp3    loop, quiet wind and a low tone as the moon emerges
- * village.mp3  loop, faint night village and forest, with the moon
- * breath.mp3   loop, quiet heavy breathing as the werewolf takes shape
- * scrape.mp3   one soft scrape as the claws settle
- * growl.mp3    one very low, restrained growl as the eyes appear
- *
- * No howl, no hit, no trailer boom. Missing files are skipped.
- *
- * Set localStorage "trustless-sound" to "off" to mute. A later settings
- * control can use that same key.
+ * Set localStorage "trustless-sound" to "off" to mute.
  */
 
 export const SOUND_KEY = "trustless-sound";
@@ -31,21 +29,26 @@ type Cue = {
 };
 
 const CUES: Cue[] = [
-  { file: "night.mp3", at: 0.2, gain: 0.14, fade: 3.2, loop: true },
-  { file: "drone.mp3", at: 0.7, gain: 0.11, fade: 3.4, loop: true },
+  { file: "night.wav", at: 0.15, gain: 0.28, fade: 2.4, loop: true },
+  { file: "drone.wav", at: 0.55, gain: 0.16, fade: 2.6, loop: true },
   {
-    file: "village.mp3",
-    at: 1.5,
-    gain: 0.09,
-    fade: 2.8,
+    file: "village.wav",
+    at: 1.3,
+    gain: 0.12,
+    fade: 2.2,
     loop: true,
-    easeAt: 3.6,
-    settle: 0.03,
-    ease: 2.4,
+    easeAt: 3.5,
+    settle: 0.05,
+    ease: 2.2,
   },
-  { file: "breath.mp3", at: 3.6, gain: 0.2, fade: 1.4, loop: true },
-  { file: "scrape.mp3", at: 5.5, gain: 0.16, fade: 0.2, loop: false },
-  { file: "growl.mp3", at: 7.15, gain: 0.14, fade: 0.55, loop: false },
+  { file: "breath.wav", at: 3.5, gain: 0.22, fade: 1.1, loop: true },
+  { file: "growl.wav", at: 4.2, gain: 0.18, fade: 0.35, loop: false },
+  { file: "scrape.wav", at: 5.5, gain: 0.2, fade: 0.12, loop: false },
+  { file: "title.wav", at: 6.85, gain: 0.22, fade: 0.05, loop: false },
+  { file: "tick.wav", at: 0.2, gain: 0.1, fade: 0.02, loop: false },
+  { file: "tick.wav", at: 2.4, gain: 0.1, fade: 0.02, loop: false },
+  { file: "tick.wav", at: 4.8, gain: 0.1, fade: 0.02, loop: false },
+  { file: "tick.wav", at: 7.2, gain: 0.1, fade: 0.02, loop: false },
 ];
 
 type Layer = Cue & {
@@ -64,6 +67,7 @@ let fadeMs = 0;
 let releaseTimer = 0;
 let gestureBound = false;
 let bootedFor = 0;
+let blocked = false;
 
 function enabled() {
   try {
@@ -91,30 +95,52 @@ function masterNow() {
   return fadeFrom * (1 - p);
 }
 
+function clock() {
+  return origin ? (performance.now() - origin) / 1000 : 0;
+}
+
+function due(layer: Layer, t: number) {
+  if (layer.missing || t + 0.08 < layer.at) return false;
+  if (!layer.loop && t > layer.at + 1.6) return false;
+  return true;
+}
+
+function playLayer(layer: Layer, t: number) {
+  if (layer.loop && layer.el.paused) layer.el.currentTime = Math.max(0, t - layer.at);
+  const pending = layer.el.play();
+  if (!pending) {
+    layer.played = true;
+    return;
+  }
+  pending.then(() => {
+    layer.played = true;
+    blocked = false;
+  }).catch(() => {
+    blocked = true;
+    layer.played = false;
+  });
+}
+
 function pump() {
-  const t = origin ? (performance.now() - origin) / 1000 : 0;
+  const t = clock();
   const m = masterNow();
   for (const layer of layers) {
     if (layer.missing) continue;
     layer.el.volume = Math.max(0, Math.min(1, m * envelope(layer, t)));
-    if (layer.played) continue;
-    if (t + 0.08 < layer.at) continue;
-    if (!layer.loop && t > layer.at + 0.45) {
-      layer.played = true;
-      continue;
-    }
+    if (layer.played || blocked || !due(layer, t)) continue;
     layer.played = true;
-    if (layer.loop) layer.el.currentTime = Math.max(0, t - layer.at);
-    layer.el.play().catch(() => {
-      layer.played = false;
-    });
+    playLayer(layer, t);
   }
   frame = window.requestAnimationFrame(pump);
 }
 
 function unlock() {
+  blocked = false;
+  const t = clock();
   for (const layer of layers) {
-    if (!layer.played && !layer.missing) layer.el.play().catch(() => undefined);
+    if (layer.missing || layer.played || !due(layer, t)) continue;
+    layer.played = true;
+    playLayer(layer, t);
   }
 }
 
@@ -128,7 +154,7 @@ export function startOpeningAudio(animationStartedAt: number, reduced: boolean) 
   fadeStart = 0;
   stopElements();
 
-  const cues = reduced ? CUES.filter((cue) => cue.file === "night.mp3") : CUES;
+  const cues = reduced ? CUES.filter((cue) => cue.file === "night.wav") : CUES;
   layers = cues.map((cue) => {
     const el = new Audio(`/opening/audio/${cue.file}`);
     el.loop = cue.loop;
@@ -144,6 +170,7 @@ export function startOpeningAudio(animationStartedAt: number, reduced: boolean) 
   if (!gestureBound) {
     gestureBound = true;
     window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
   }
   if (!frame) frame = window.requestAnimationFrame(pump);
 }

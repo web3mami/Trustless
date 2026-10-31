@@ -116,9 +116,17 @@ function Loader() {
     return () => window.clearTimeout(timeout);
   }, []);
 
+  const phase = String(index + 1).padStart(2, "0");
+
   return (
-    <div className="opening-loader" aria-live="polite">
-      <p key={index} className="opening-line">
+    <div className="opening-loader">
+      <p className="opening-loader-meta">
+        <span>Initializing</span>
+        <span>
+          {phase} / {String(LINES.length).padStart(2, "0")}
+        </span>
+      </p>
+      <p key={index} className="opening-line" aria-live="polite">
         {LINES[index]}
       </p>
       <div className="opening-loader-line" aria-hidden="true">
