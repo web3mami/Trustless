@@ -1,7 +1,13 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useRef, useState } from "react";
+import { Character, type Gender } from "@/components/auth/character";
+import { Login } from "@/components/auth/login";
+import { Profile } from "@/components/auth/profile";
+import { Settings } from "@/components/auth/settings";
 import { Opening } from "@/components/opening/index";
+import { hasPrivyApp } from "@/components/providers";
 import {
   AURA_LABEL,
   DEAL,
@@ -44,54 +50,58 @@ const OPENING: Message[] = [
 
 export function Game() {
   const [opened, setOpened] = useState(false);
-  const [seatedName, setSeatedName] = useState<string | null>(null);
 
   if (!opened) {
     return <Opening onDone={() => setOpened(true)} />;
   }
 
-  if (!seatedName) {
-    return <Gate onSit={setSeatedName} />;
+  if (!hasPrivyApp()) {
+    return <Login />;
   }
 
-  return <Table you={seatedName} onLeave={() => setSeatedName(null)} />;
+  return <Village />;
 }
 
-function Gate({ onSit }: { onSit: (name: string) => void }) {
-  const [name, setName] = useState("");
-  const trimmed = name.trim();
+function Village() {
+  const { ready, authenticated, logout, user } = usePrivy();
+  const [player, setPlayer] = useState<{ username: string; gender: Gender } | null>(null);
+  const [page, setPage] = useState<"play" | "profile" | "settings">("play");
+
+  if (!ready) return <Login ready={false} />;
+  if (!authenticated) return <Login />;
+  if (page === "profile") return <Profile onBack={() => setPage("play")} />;
+  if (page === "settings") return <Settings onBack={() => setPage("play")} />;
+  if (!player) {
+    return (
+      <Character
+        userId={user?.id ?? ""}
+        onBack={() => void logout()}
+        onDone={setPlayer}
+      />
+    );
+  }
 
   return (
-    <main className="room gate">
-      <div className="gate-card">
-        <p className="kicker">Table 04 · 16 seats</p>
-        <h1 className="display">Trustless</h1>
-        <p className="lede">Trust no one. Verify everything.</p>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (trimmed) onSit(trimmed);
-          }}
-        >
-          <label htmlFor="seat-name">Your name at the table</label>
-          <input
-            id="seat-name"
-            autoFocus
-            autoComplete="nickname"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="How the village should address you"
-          />
-          <button className="primary" type="submit" disabled={!trimmed}>
-            Sit down
-          </button>
-        </form>
-      </div>
-    </main>
+    <Table
+      you={player.username}
+      onLeave={() => setPlayer(null)}
+      onProfile={() => setPage("profile")}
+      onSettings={() => setPage("settings")}
+    />
   );
 }
 
-function Table({ you, onLeave }: { you: string; onLeave: () => void }) {
+function Table({
+  you,
+  onLeave,
+  onProfile,
+  onSettings,
+}: {
+  you: string;
+  onLeave: () => void;
+  onProfile: () => void;
+  onSettings: () => void;
+}) {
   const dealRef = useRef<HTMLDialogElement>(null);
   const [phase, setPhase] = useState<Phase>("night");
   const [round, setRound] = useState(1);
@@ -164,6 +174,12 @@ function Table({ you, onLeave }: { you: string; onLeave: () => void }) {
           </button>
           <button className="text-btn" type="button" onClick={shiftPhase}>
             {phase === "night" ? "Dawn" : "Dusk"}
+          </button>
+          <button className="text-btn" type="button" onClick={onProfile}>
+            Profile
+          </button>
+          <button className="text-btn" type="button" onClick={onSettings}>
+            Settings
           </button>
           <button className="text-btn" type="button" onClick={onLeave}>
             Leave

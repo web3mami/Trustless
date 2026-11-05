@@ -28,7 +28,6 @@ function useOpeningShift() {
 
 export function Opening({ onDone }: { onDone: () => void }) {
   const shift = useOpeningShift();
-  const [returning, setReturning] = useState(false);
   const [leave, setLeave] = useState(false);
   const [needSound, setNeedSound] = useState(false);
   const [touch, setTouch] = useState(false);
@@ -37,11 +36,6 @@ export function Opening({ onDone }: { onDone: () => void }) {
   onDoneRef.current = onDone;
 
   useEffect(() => {
-    try {
-      setReturning(localStorage.getItem(SEEN_KEY) === "1");
-    } catch {
-      setReturning(false);
-    }
     setTouch(window.matchMedia("(pointer: coarse)").matches);
     const stop = listenOpeningAudio(setNeedSound);
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -97,11 +91,6 @@ export function Opening({ onDone }: { onDone: () => void }) {
       {needSound ? (
         <button className="opening-sound" type="button" onClick={armOpeningAudio}>
           {touch ? "Tap for sound" : "Click for sound"}
-        </button>
-      ) : null}
-      {returning ? (
-        <button className="opening-skip" type="button" onClick={() => setLeave(true)}>
-          Skip
         </button>
       ) : null}
     </main>
