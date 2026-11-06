@@ -8,6 +8,7 @@ import { Profile } from "@/components/auth/profile";
 import { Settings } from "@/components/auth/settings";
 import { Opening } from "@/components/opening/index";
 import { hasPrivyApp } from "@/components/providers";
+import { MainMenu } from "@/components/main-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   AURA_LABEL,
@@ -30,6 +31,15 @@ type Read = {
   seatId: number;
   aura: Aura;
 };
+
+type VillagePage =
+  | "menu"
+  | "play"
+  | "profile"
+  | "settings"
+  | "inventory"
+  | "roles"
+  | "shop";
 
 const OPENING: Message[] = [
   {
@@ -85,7 +95,7 @@ function Village() {
     getServerHydration,
   );
   const [player, setPlayer] = useState<{ username: string; gender: Gender } | null>(null);
-  const [page, setPage] = useState<"play" | "profile" | "settings">("play");
+  const [page, setPage] = useState<VillagePage>("menu");
   const [authError, setAuthError] = useState("");
   const [authPending, setAuthPending] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -139,8 +149,6 @@ function Village() {
       />
     );
   }
-  if (page === "profile") return <Profile onBack={() => setPage("play")} />;
-  if (page === "settings") return <Settings onBack={() => setPage("play")} />;
   if (!player) {
     return (
       <Character
@@ -157,13 +165,61 @@ function Village() {
     );
   }
 
+  if (page === "profile") {
+    return <Profile alias={player.username} onBack={() => setPage("menu")} />;
+  }
+  if (page === "settings") return <Settings onBack={() => setPage("menu")} />;
+  if (page === "inventory" || page === "roles" || page === "shop") {
+    return (
+      <MenuPlaceholder
+        title={page}
+        onBack={() => setPage("menu")}
+      />
+    );
+  }
+  if (page === "menu") {
+    return (
+      <MainMenu
+        gender={player.gender}
+        onPlay={() => setPage("play")}
+        onInventory={() => setPage("inventory")}
+        onProfile={() => setPage("profile")}
+        onRoles={() => setPage("roles")}
+        onShop={() => setPage("shop")}
+        onSettings={() => setPage("settings")}
+      />
+    );
+  }
+
   return (
     <Table
       you={player.username}
-      onLeave={() => setPlayer(null)}
+      onLeave={() => setPage("menu")}
       onProfile={() => setPage("profile")}
       onSettings={() => setPage("settings")}
     />
+  );
+}
+
+function MenuPlaceholder({
+  title,
+  onBack,
+}: {
+  title: "inventory" | "roles" | "shop";
+  onBack: () => void;
+}) {
+  return (
+    <main className="room account">
+      <ThemeToggle className="account-theme-toggle" />
+      <div className="gate-card">
+        <p className="kicker">Main Menu</p>
+        <h1 className="display">{title}</h1>
+        <p className="lede">This section is coming soon.</p>
+        <button className="text-btn" type="button" onClick={onBack}>
+          Back
+        </button>
+      </div>
+    </main>
   );
 }
 
