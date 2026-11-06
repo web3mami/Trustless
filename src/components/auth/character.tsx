@@ -36,7 +36,7 @@ export function Character({
       const response = await fetch("/api/usernames", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: name, userId }),
+        body: JSON.stringify({ username: name, userId, gender: chosen }),
       });
       if (response.status === 409) {
         setError("This username already exists.");

@@ -1,50 +1,66 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { neon } from "@neondatabase/serverless";
 
-type Owner = { name: string; userId: string };
-type Book = Record<string, Owner>;
+type Gender = "male" | "female" | "other";
 
-const file = path.join(process.cwd(), ".data", "usernames.json");
+const databaseUrl = process.env.DATABASE_URL;
+const sql = databaseUrl ? neon(databaseUrl) : null;
 
-let chain: Promise<unknown> = Promise.resolve();
+const state = globalThis as typeof globalThis & {
+  __trustlessProfilesReady?: Promise<void>;
+};
 
-function keyOf(username: string) {
-  return username.trim().toLowerCase();
+function prepareProfiles() {
+  if (!sql) return Promise.reject(new Error("DATABASE_URL is not configured"));
+  state.__trustlessProfilesReady ??= (async () => {
+    await sql`
+      CREATE TABLE IF NOT EXISTS profiles (
+        privy_user_id TEXT PRIMARY KEY,
+        username TEXT NOT NULL CHECK (char_length(username) BETWEEN 1 AND 16),
+        gender TEXT NOT NULL CHECK (gender IN ('male', 'female', 'other')),
+        wallet_address TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS profiles_username_lower_unique
+      ON profiles ((lower(username)))
+    `;
+  })();
+  return state.__trustlessProfilesReady;
 }
 
-async function readBook(): Promise<Book> {
-  try {
-    const parsed = JSON.parse(await readFile(file, "utf8")) as Book;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-async function claim(username: string, userId: string) {
+export async function claimUsername(
+  username: string,
+  userId: string,
+  gender: Gender,
+) {
   const name = username.trim();
-  const key = keyOf(name);
-  if (!key || key.length > 16 || !userId) return "invalid" as const;
-
-  const book = await readBook();
-  const taken = book[key];
-  if (taken && taken.userId !== userId) return "exists" as const;
-
-  for (const [existing, owner] of Object.entries(book)) {
-    if (owner.userId === userId && existing !== key) delete book[existing];
+  if (!name || name.length > 16 || !userId || !gender) {
+    return "invalid" as const;
   }
 
-  book[key] = { name, userId };
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, JSON.stringify(book, null, 2));
-  return "ok" as const;
-}
+  try {
+    await prepareProfiles();
+    await sql!`
+      INSERT INTO profiles (privy_user_id, username, gender)
+      VALUES (${userId}, ${name}, ${gender})
+      ON CONFLICT (privy_user_id) DO UPDATE SET
+        username = EXCLUDED.username,
+        gender = EXCLUDED.gender,
+        updated_at = now()
+    `;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      return "exists" as const;
+    }
+    throw error;
+  }
 
-export function claimUsername(username: string, userId: string) {
-  const run = chain.then(() => claim(username, userId));
-  chain = run.then(
-    () => undefined,
-    () => undefined,
-  );
-  return run;
+  return "ok" as const;
 }
