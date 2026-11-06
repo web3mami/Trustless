@@ -11,8 +11,7 @@ export function Settings({ onBack }: { onBack: () => void }) {
         <p className="kicker">Settings</p>
         <h1 className="display">The village hour</h1>
         <p className="lede">
-          The sign-in page stays in daylight. After you register, the rest of
-          the village can follow day or night.
+          Choose the light that follows you through the network.
         </p>
         <div className="theme-switch" role="group" aria-label="Theme">
           <button
@@ -20,14 +19,28 @@ export function Settings({ onBack }: { onBack: () => void }) {
             type="button"
             onClick={() => setTheme("day")}
           >
-            Day
+            Village Day
           </button>
           <button
-            className={theme === "night" ? "primary" : "text-btn"}
+            className={theme === "blue-hour" ? "primary" : "text-btn"}
             type="button"
-            onClick={() => setTheme("night")}
+            onClick={() => setTheme("blue-hour")}
           >
-            Night
+            Blue Hour
+          </button>
+          <button
+            className={theme === "moonlit" ? "primary" : "text-btn"}
+            type="button"
+            onClick={() => setTheme("moonlit")}
+          >
+            Moonlit Night
+          </button>
+          <button
+            className={theme === "system" ? "primary" : "text-btn"}
+            type="button"
+            onClick={() => setTheme("system")}
+          >
+            System
           </button>
         </div>
         <button className="text-btn" type="button" onClick={onBack}>
