@@ -2067,6 +2067,8 @@ html[data-resolved-theme="moonlit"] .main-menu {
 
   .main-menu-nav {
     margin-top: clamp(150px, 25vh, 205px);
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .main-menu-character {
@@ -2099,7 +2101,8 @@ html[data-resolved-theme="moonlit"] .main-menu {
 
   .main-menu-nav {
     width: min(224px, calc(100% - 32px));
-    margin-left: 16px;
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .main-menu-nav nav {
