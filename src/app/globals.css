@@ -2066,14 +2066,14 @@ html[data-resolved-theme="moonlit"] .main-menu {
   }
 
   .main-menu-nav {
-    margin-top: 118px;
+    margin-top: clamp(150px, 25vh, 205px);
   }
 
   .main-menu-character {
     right: auto;
     left: 50%;
-    width: min(68vw, 280px);
-    height: min(48vh, 390px);
+    width: min(58vw, 240px);
+    height: min(40vh, 350px);
   }
 
   .profile-stats {
