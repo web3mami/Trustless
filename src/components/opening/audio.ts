@@ -79,7 +79,7 @@ let masterGain: GainNode | null = null;
 const waiters = new Set<(waiting: boolean) => void>();
 
 function waiting() {
-  return blocked && (!ctx || ctx.state !== "running");
+  return !armed || blocked || !ctx || ctx.state !== "running";
 }
 
 function tell() {
@@ -204,10 +204,17 @@ function pump() {
 
 function unlock() {
   armed = true;
-  blocked = false;
+  const audio = context();
+  blocked = audio.state !== "running";
   tell();
-  const audio = ctx;
-  if (!audio) return;
+
+  // iOS browsers need a source started inside the pointer gesture before
+  // Web Audio is truly audible, even when resume() reports success.
+  const wake = audio.createBufferSource();
+  wake.buffer = audio.createBuffer(1, 1, audio.sampleRate);
+  wake.connect(audio.destination);
+  wake.start();
+
   audio.resume().then(() => {
     blocked = audio.state !== "running";
     tell();

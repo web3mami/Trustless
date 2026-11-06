@@ -71,6 +71,7 @@ export function Opening({ onDone }: { onDone: () => void }) {
     <main
       className={leave ? "opening opening-out" : "opening"}
       style={{ ["--shift" as string]: `${shift}ms` }}
+      onPointerDown={armOpeningAudio}
       onAnimationEnd={(event) => {
         if (event.target !== event.currentTarget) return;
         if (!event.animationName.includes("opening-leave")) return;
