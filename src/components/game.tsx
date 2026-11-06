@@ -1,13 +1,14 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Character, type Gender } from "@/components/auth/character";
-import { Login } from "@/components/auth/login";
+import { AUTH_PENDING_KEY, Login } from "@/components/auth/login";
 import { Profile } from "@/components/auth/profile";
 import { Settings } from "@/components/auth/settings";
 import { Opening } from "@/components/opening/index";
 import { hasPrivyApp } from "@/components/providers";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   AURA_LABEL,
   DEAL,
@@ -48,11 +49,25 @@ const OPENING: Message[] = [
   },
 ];
 
-export function Game() {
-  const [opened, setOpened] = useState(false);
+const OPENING_SEEN_KEY = "trustless-opening-seen";
+const AUTH_VERIFY_TIMEOUT = 20_000;
+const subscribeToHydration = () => () => {};
+const getClientHydration = () => true;
+const getServerHydration = () => false;
+
+export function Game({ initialOpened = false }: { initialOpened?: boolean }) {
+  const [opened, setOpened] = useState(initialOpened);
 
   if (!opened) {
-    return <Opening onDone={() => setOpened(true)} />;
+    return (
+      <Opening
+        onDone={() => {
+          sessionStorage.setItem(OPENING_SEEN_KEY, "true");
+          document.cookie = `${OPENING_SEEN_KEY}=true; path=/; SameSite=Lax`;
+          setOpened(true);
+        }}
+      />
+    );
   }
 
   if (!hasPrivyApp()) {
@@ -64,19 +79,80 @@ export function Game() {
 
 function Village() {
   const { ready, authenticated, logout, user } = usePrivy();
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydration,
+    getServerHydration,
+  );
   const [player, setPlayer] = useState<{ username: string; gender: Gender } | null>(null);
   const [page, setPage] = useState<"play" | "profile" | "settings">("play");
+  const [authError, setAuthError] = useState("");
+  const [authPending, setAuthPending] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const started = Number(sessionStorage.getItem(AUTH_PENDING_KEY));
+    const pending =
+      Number.isFinite(started) && Date.now() - started < AUTH_VERIFY_TIMEOUT;
+    if (!pending) sessionStorage.removeItem(AUTH_PENDING_KEY);
+    return pending;
+  });
 
-  if (!ready) return <Login ready={false} />;
-  if (!authenticated) return <Login />;
+  useEffect(() => {
+    if (!authPending || authenticated) return;
+    const started = Number(sessionStorage.getItem(AUTH_PENDING_KEY));
+    const remaining = Math.max(
+      0,
+      AUTH_VERIFY_TIMEOUT - (Date.now() - started),
+    );
+    const timeout = window.setTimeout(() => {
+      sessionStorage.removeItem(AUTH_PENDING_KEY);
+      setAuthPending(false);
+      setAuthError("Google sign-in did not complete. Please try again.");
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [authPending, authenticated]);
+
+  function clearAuthPending() {
+    sessionStorage.removeItem(AUTH_PENDING_KEY);
+    setAuthPending(false);
+  }
+
+  if (!hydrated || !ready || (authPending && !authenticated)) {
+    return (
+      <Login
+        ready={ready}
+        verifying
+        onOAuthError={(message) => {
+          clearAuthPending();
+          setAuthError(message);
+        }}
+      />
+    );
+  }
+  if (!authenticated) {
+    return (
+      <Login
+        authError={authError}
+        onOAuthError={(message) => {
+          clearAuthPending();
+          setAuthError(message);
+        }}
+      />
+    );
+  }
   if (page === "profile") return <Profile onBack={() => setPage("play")} />;
   if (page === "settings") return <Settings onBack={() => setPage("play")} />;
   if (!player) {
     return (
       <Character
         userId={user?.id ?? ""}
-        onBack={() => void logout()}
-        onDone={setPlayer}
+        onBack={() => {
+          clearAuthPending();
+          void logout();
+        }}
+        onDone={(nextPlayer) => {
+          clearAuthPending();
+          setPlayer(nextPlayer);
+        }}
       />
     );
   }
@@ -184,6 +260,7 @@ function Table({
           <button className="text-btn" type="button" onClick={onLeave}>
             Leave
           </button>
+          <ThemeToggle className="room-theme-toggle" />
         </div>
       </header>
 

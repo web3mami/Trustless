@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+} from "react";
 
 export const THEME_KEY = "trustless-theme";
 
@@ -16,54 +22,77 @@ const ThemeContext = createContext<{
   setTheme: () => undefined,
 });
 
+const THEME_CHANGE_EVENT = "trustless-theme-change";
+
+function readStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "night") return "moonlit";
+    if (
+      stored === "day" ||
+      stored === "blue-hour" ||
+      stored === "moonlit" ||
+      stored === "system"
+    ) {
+      return stored;
+    }
+  } catch {
+    /* private mode */
+  }
+  return "day";
+}
+
+function subscribeToTheme(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(THEME_CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(THEME_CHANGE_EVENT, onChange);
+  };
+}
+
+function subscribeToSystemTheme(onChange: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+const getServerTheme = (): Theme => "day";
+const getSystemTheme = () =>
+  window.matchMedia("(prefers-color-scheme: dark)").matches;
+const getServerSystemTheme = () => false;
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "day";
+  const theme = useSyncExternalStore(
+    subscribeToTheme,
+    readStoredTheme,
+    getServerTheme,
+  );
+  const systemDark = useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemTheme,
+    getServerSystemTheme,
+  );
+  const setTheme = useCallback((nextTheme: Theme) => {
     try {
-      const stored = localStorage.getItem(THEME_KEY);
-      if (stored === "night") return "moonlit";
-      if (
-        stored === "day" ||
-        stored === "blue-hour" ||
-        stored === "moonlit" ||
-        stored === "system"
-      ) {
-        return stored;
-      }
+      localStorage.setItem(THEME_KEY, nextTheme);
     } catch {
       /* private mode */
     }
-    return "day";
-  });
-  const [systemDark, setSystemDark] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches,
-  );
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const sync = (event: MediaQueryListEvent) => setSystemDark(event.matches);
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
+    window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.resolvedTheme =
       theme === "system" ? (systemDark ? "moonlit" : "day") : theme;
-    try {
-      localStorage.setItem(THEME_KEY, theme);
-    } catch {
-      /* private mode */
-    }
   }, [systemDark, theme]);
 
   const resolvedTheme =
     theme === "system" ? (systemDark ? "moonlit" : "day") : theme;
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme: setThemeState }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

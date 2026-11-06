@@ -4,50 +4,87 @@ import { useState } from "react";
 import { useLoginWithEmail, useLoginWithOAuth } from "@privy-io/react-auth";
 import { DayScene } from "@/components/auth/day-scene";
 import { hasPrivyApp } from "@/components/providers";
-import { useTheme } from "@/lib/theme";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-export function Login({ ready = true }: { ready?: boolean }) {
+export const AUTH_PENDING_KEY = "trustless-auth-pending";
+
+export function Login({
+  ready = true,
+  verifying = false,
+  authError = "",
+  onOAuthError,
+}: {
+  ready?: boolean;
+  verifying?: boolean;
+  authError?: string;
+  onOAuthError?: (message: string) => void;
+}) {
   const configured = hasPrivyApp();
-  const { resolvedTheme, setTheme } = useTheme();
-  const night = resolvedTheme === "moonlit";
 
   return (
     <main className="login">
       <DayScene />
-      <button
-        className="login-theme-toggle"
-        type="button"
-        aria-label={night ? "Switch to Village Day" : "Switch to Moonlit Night"}
-        title={night ? "Village Day" : "Moonlit Night"}
-        onClick={() => setTheme(night ? "day" : "moonlit")}
+      <ThemeToggle className="login-theme-toggle" />
+      <div
+        className={verifying ? "login-card login-loading" : "login-card"}
+        role={verifying ? "status" : undefined}
+        aria-live={verifying ? "polite" : undefined}
       >
-        {night ? <SunIcon /> : <MoonIcon />}
-      </button>
-      <div className="login-card">
         <p className="kicker login-kicker">The Network</p>
         <h1 className="display login-title">Trustless</h1>
-        <p className="login-lede">Verify your identity to enter.</p>
-        {configured ? (
-          <LoginMethods ready={ready} />
+        {verifying ? (
+          <>
+            <span className="login-verifying-mark" aria-hidden="true" />
+            <p className="login-verifying-copy">Verifying your identity…</p>
+          </>
         ) : (
+          <p className="login-lede">Verify your identity to enter.</p>
+        )}
+        {configured ? (
+          <div hidden={verifying}>
+            <LoginMethods
+              ready={ready && !verifying}
+              onOAuthError={onOAuthError}
+            />
+          </div>
+        ) : !verifying ? (
           <p className="login-setup">
             Add <code>NEXT_PUBLIC_PRIVY_APP_ID</code> from the Privy dashboard,
             then enable Google, X, and email.
           </p>
-        )}
-        <div className="login-foot">
-          <p>New here? Your account will be created automatically.</p>
-          <p className="login-foot-secondary">
-            Your on-chain identity is created securely with your account.
-          </p>
-        </div>
+        ) : null}
+        {!verifying && authError ? (
+          <p className="login-error">{authError}</p>
+        ) : null}
+        {!verifying ? (
+          <div className="login-foot">
+            <p>New here? Your account will be created automatically.</p>
+            <p className="login-foot-secondary">
+              Your on-chain identity is created securely with your account.
+            </p>
+          </div>
+        ) : null}
       </div>
     </main>
   );
 }
 
-function LoginMethods({ ready }: { ready: boolean }) {
-  const { initOAuth } = useLoginWithOAuth();
+function LoginMethods({
+  ready,
+  onOAuthError,
+}: {
+  ready: boolean;
+  onOAuthError?: (message: string) => void;
+}) {
+  const { initOAuth } = useLoginWithOAuth({
+    onError: () => {
+      const message = "Google sign-in did not complete. Please try again.";
+      sessionStorage.removeItem(AUTH_PENDING_KEY);
+      setError(message);
+      setBusy(false);
+      onOAuthError?.(message);
+    },
+  });
   const { sendCode, loginWithCode } = useLoginWithEmail();
   const [emailOpen, setEmailOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -60,8 +97,10 @@ function LoginMethods({ ready }: { ready: boolean }) {
     setError("");
     setBusy(true);
     try {
+      sessionStorage.setItem(AUTH_PENDING_KEY, String(Date.now()));
       await initOAuth({ provider });
     } catch (err) {
+      sessionStorage.removeItem(AUTH_PENDING_KEY);
       setError(err instanceof Error ? err.message : "Sign-in did not finish.");
       setBusy(false);
     }
@@ -191,33 +230,4 @@ function MailIcon() {
   );
 }
 
-function SunIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path
-        d="M12 2.6v2.1m0 14.6v2.1M2.6 12h2.1m14.6 0h2.1M5.35 5.35l1.48 1.48m10.34 10.34 1.48 1.48m0-13.3-1.48 1.48M6.83 17.17l-1.48 1.48"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function MoonIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M18.7 15.5A7.6 7.6 0 0 1 8.5 5.3 7.7 7.7 0 1 0 18.7 15.5Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 

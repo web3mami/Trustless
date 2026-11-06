@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { DayScene } from "@/components/auth/day-scene";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export type Gender = "male" | "female" | "other";
 
@@ -23,7 +24,6 @@ export function Character({
   const genderName = useId();
   const [username, setUsername] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
-  const [help, setHelp] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const trimmed = username.trim();
@@ -58,6 +58,7 @@ export function Character({
   return (
     <main className="login create">
       <DayScene />
+      <ThemeToggle className="login-theme-toggle" />
       <button className="create-back" type="button" onClick={onBack} aria-label="Back">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -80,60 +81,51 @@ export function Character({
             void claim(trimmed, gender);
           }}
         >
-          <label className="create-label" htmlFor="character-name">
-            Username
-          </label>
-          <div className="create-user">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
-              <path
-                d="M6.2 18.2c1.2-2.4 3.2-3.6 5.8-3.6s4.6 1.2 5.8 3.6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
-            <input
-              id="character-name"
-              autoFocus
-              autoComplete="nickname"
-              maxLength={16}
-              value={username}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={error ? "username-error" : undefined}
-              onChange={(event) => {
-                setUsername(event.target.value);
-                setError("");
-              }}
-              placeholder="Username"
-            />
+          <div className="create-intro">
+            <h2 className="display">Create Your Identity</h2>
+            <p>Establish how you&apos;ll appear across the network.</p>
           </div>
-          {error ? (
-            <p id="username-error" className="create-error" role="alert">
-              {error}
-            </p>
-          ) : null}
 
-          <div className="create-gender">
-            <div className="create-label" id="gender-label">
-              Gender
-              <button
-                className="create-help"
-                type="button"
-                aria-label="About gender"
-                aria-expanded={help}
-                aria-controls="gender-help"
-                onClick={() => setHelp((open) => !open)}
-              >
-                ?
-              </button>
+          <section className="create-section create-name-section">
+            <label className="create-label" htmlFor="character-name">
+              Alias
+            </label>
+            <p className="create-helper">This is how other players will know you.</p>
+            <div className="create-user">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <path
+                  d="M6.2 18.2c1.2-2.4 3.2-3.6 5.8-3.6s4.6 1.2 5.8 3.6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <input
+                id="character-name"
+                autoFocus
+                autoComplete="nickname"
+                maxLength={16}
+                value={username}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "username-error" : undefined}
+                onChange={(event) => {
+                  setUsername(event.target.value);
+                  setError("");
+                }}
+                placeholder="Choose your name"
+              />
             </div>
-            {help ? (
-              <p id="gender-help" className="create-note">
-                This is for character creation and costumes.
+            {error ? (
+              <p id="username-error" className="create-error" role="alert">
+                {error}
               </p>
             ) : null}
+          </section>
+
+          <section className="create-section create-gender">
+            <div className="create-label" id="gender-label">Gender</div>
             <div className="create-options" role="radiogroup" aria-labelledby="gender-label">
               {GENDERS.map((option) => (
                 <label key={option.value}>
@@ -148,10 +140,10 @@ export function Character({
                 </label>
               ))}
             </div>
-          </div>
+          </section>
 
           <button className="create-ok" type="submit" disabled={!ready}>
-            OK
+            {busy ? "Claiming…" : "Claim Identity"}
           </button>
         </form>
       </div>
