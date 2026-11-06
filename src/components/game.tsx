@@ -35,6 +35,7 @@ type Read = {
 type VillagePage =
   | "menu"
   | "play"
+  | "play-coming"
   | "profile"
   | "settings"
   | "inventory"
@@ -169,10 +170,15 @@ function Village() {
     return <Profile alias={player.username} onBack={() => setPage("menu")} />;
   }
   if (page === "settings") return <Settings onBack={() => setPage("menu")} />;
-  if (page === "inventory" || page === "roles" || page === "shop") {
+  if (
+    page === "play-coming" ||
+    page === "inventory" ||
+    page === "roles" ||
+    page === "shop"
+  ) {
     return (
       <MenuPlaceholder
-        title={page}
+        title={page === "play-coming" ? "play" : page}
         onBack={() => setPage("menu")}
       />
     );
@@ -181,7 +187,7 @@ function Village() {
     return (
       <MainMenu
         gender={player.gender}
-        onPlay={() => setPage("play")}
+        onPlay={() => setPage("play-coming")}
         onInventory={() => setPage("inventory")}
         onProfile={() => setPage("profile")}
         onRoles={() => setPage("roles")}
@@ -205,7 +211,7 @@ function MenuPlaceholder({
   title,
   onBack,
 }: {
-  title: "inventory" | "roles" | "shop";
+  title: "play" | "inventory" | "roles" | "shop";
   onBack: () => void;
 }) {
   return (
@@ -213,7 +219,7 @@ function MenuPlaceholder({
       <ThemeToggle className="account-theme-toggle" />
       <div className="gate-card">
         <p className="kicker">Main Menu</p>
-        <h1 className="display">{title}</h1>
+        <h1 className="display">{title.toUpperCase()}</h1>
         <p className="lede">This section is coming soon.</p>
         <button className="text-btn" type="button" onClick={onBack}>
           Back

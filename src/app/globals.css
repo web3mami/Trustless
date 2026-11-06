@@ -1253,7 +1253,10 @@ html[data-resolved-theme="moonlit"] .login {
   .create-intro,
   .create-section,
   .create-ok,
-  .create-options input:checked::after {
+  .create-options input:checked::after,
+  .character-body-idle,
+  .character-head-idle,
+  .character-eyes {
     animation: none;
   }
 }
@@ -1658,23 +1661,68 @@ html[data-resolved-theme="moonlit"] .main-menu {
   fill: rgba(16, 34, 43, 0.2);
 }
 
+.character-skin-light {
+  stop-color: color-mix(in srgb, var(--character-skin), white 9%);
+}
+
+.character-skin-dark {
+  stop-color: color-mix(in srgb, var(--character-skin), var(--character-line) 16%);
+}
+
+.character-coat-light {
+  stop-color: color-mix(in srgb, var(--character-coat), white 8%);
+}
+
+.character-coat-dark {
+  stop-color: color-mix(in srgb, var(--character-coat), var(--character-line) 24%);
+}
+
+.character-trouser {
+  fill: color-mix(in srgb, var(--character-cloak), var(--character-line) 24%);
+  stroke: var(--character-line);
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.character-boot {
+  fill: var(--character-line);
+}
+
 .character-cloak {
   fill: var(--character-cloak);
   stroke: var(--character-line);
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.character-sleeve {
+  fill: color-mix(in srgb, var(--character-cloak), white 4%);
+  stroke: var(--character-line);
+  stroke-linejoin: round;
   stroke-width: 3;
 }
 
 .character-coat {
-  fill: var(--character-coat);
+  fill: url("#character-coat-gradient");
   stroke: var(--character-line);
+  stroke-linejoin: round;
   stroke-width: 3;
 }
 
 .character-neck,
-.character-face {
-  fill: var(--character-skin);
+.character-face,
+.character-ear {
+  fill: url("#character-skin-gradient");
   stroke: var(--character-line);
+  stroke-linejoin: round;
   stroke-width: 3;
+}
+
+.character-neck-shadow,
+.character-cheek-shade,
+.character-jaw-shade {
+  fill: color-mix(in srgb, var(--character-skin), var(--character-line) 18%);
+  opacity: 0.28;
 }
 
 .character-hair {
@@ -1684,15 +1732,52 @@ html[data-resolved-theme="moonlit"] .main-menu {
   stroke-width: 3;
 }
 
+.character-hair-highlight {
+  fill: none;
+  stroke: color-mix(in srgb, var(--character-hair), white 20%);
+  stroke-linecap: round;
+  stroke-width: 3;
+  opacity: 0.48;
+}
+
 .character-brow,
-.character-face-line,
 .character-lapel,
+.character-seam,
+.character-eye-line,
+.character-nose,
+.character-mouth,
 .character-network-detail {
   fill: none;
   stroke: var(--character-line);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 3;
+}
+
+.character-brow {
+  stroke-width: 4;
+}
+
+.character-eye-line {
+  stroke-width: 2;
+}
+
+.character-nose {
+  stroke-width: 2;
+  opacity: 0.62;
+}
+
+.character-mouth {
+  stroke-width: 2.2;
+}
+
+.character-lapel,
+.character-seam {
+  opacity: 0.58;
+}
+
+.character-seam {
+  stroke-width: 1.5;
 }
 
 .character-network-detail {
@@ -1708,6 +1793,59 @@ html[data-resolved-theme="moonlit"] .main-menu {
   fill: var(--character-accent);
   stroke: color-mix(in srgb, var(--character-accent), white 18%);
   stroke-width: 1;
+}
+
+.character-badge {
+  fill: color-mix(in srgb, var(--character-line), transparent 42%);
+  stroke: color-mix(in srgb, var(--character-accent), transparent 20%);
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.character-body-idle {
+  transform-box: view-box;
+  transform-origin: 160px 492px;
+  animation: character-breathe 5.4s ease-in-out infinite;
+}
+
+.character-head-idle {
+  transform-box: view-box;
+  transform-origin: 160px 294px;
+  animation: character-head-idle 7s ease-in-out infinite;
+}
+
+.character-eyes {
+  transform-box: view-box;
+  transform-origin: 160px 226px;
+  animation: character-blink 6.2s ease-in-out infinite;
+}
+
+@keyframes character-breathe {
+  50% {
+    transform: translateY(-1px) scaleX(1.008);
+  }
+}
+
+@keyframes character-head-idle {
+  0%,
+  100% {
+    transform: rotate(-0.3deg);
+  }
+  50% {
+    transform: translateY(1px) rotate(0.35deg);
+  }
+}
+
+@keyframes character-blink {
+  0%,
+  44%,
+  48%,
+  100% {
+    transform: scaleY(1);
+  }
+  46% {
+    transform: scaleY(0.08);
+  }
 }
 
 .account {
