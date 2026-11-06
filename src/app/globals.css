@@ -1176,6 +1176,17 @@ html[data-resolved-theme="moonlit"] .login {
   }
 }
 
+@media (max-width: 600px) {
+  .login {
+    padding: 56px 20px 40px;
+  }
+
+  .login-village {
+    height: auto;
+    min-height: 0;
+  }
+}
+
 .create {
   place-items: center;
   padding: 36px 20px 120px;
