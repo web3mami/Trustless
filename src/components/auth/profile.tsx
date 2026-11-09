@@ -2,6 +2,7 @@
 
 import { useCreateWallet, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FactionIcon } from "@/components/faction-icon";
 import { PlayerCharacter } from "@/components/main-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { Gender } from "@/components/auth/character";
@@ -164,30 +165,30 @@ export function Profile({
 
         <section className="profile-section profile-record">
           <h2>Player Record</h2>
-          <dl className="profile-stats">
-            <div><dt>Matches</dt><dd>{player.stats.matches}</dd></div>
-            <div><dt>Wins</dt><dd>{player.stats.wins}</dd></div>
-            <div><dt>Win rate</dt><dd>{winRate}</dd></div>
-            <div><dt>Correct votes</dt><dd>{player.stats.correctVotes}</dd></div>
-          </dl>
+          <ul className="profile-stats">
+            <StatTile icon={<MatchesMark />} label="Matches" value={player.stats.matches} />
+            <StatTile icon={<WinsMark />} label="Wins" value={player.stats.wins} />
+            <StatTile icon={<WinRateMark />} label="Win rate" value={winRate} />
+          </ul>
         </section>
 
         <section className="profile-section profile-factions">
           <h2>Faction Record</h2>
-          <dl>
+          <ul className="profile-faction-badges">
             {(["good", "werewolf", "solo", "neutral"] as const).map((faction) => (
-              <div key={faction} data-faction={faction}>
-                <dt>
-                  <FactionMark faction={faction} />
-                  {faction}
-                </dt>
-                <dd>
-                  <strong>{player.factionRecord[faction].wins}</strong>
-                  <span>/ {player.factionRecord[faction].games} games</span>
-                </dd>
-              </div>
+              <li key={faction} data-faction={faction}>
+                <span className="profile-faction-emblem">
+                  <FactionIcon faction={faction} className="profile-faction-mark" />
+                </span>
+                <strong>{faction}</strong>
+                <span className="profile-faction-tally">
+                  {player.factionRecord[faction].wins} Wins
+                  <span aria-hidden="true"> • </span>
+                  {player.factionRecord[faction].games} Games
+                </span>
+              </li>
             ))}
-          </dl>
+          </ul>
         </section>
 
         <div className="profile-lower-grid">
@@ -330,25 +331,50 @@ function EmptyRecord({
   );
 }
 
-function FactionMark({
-  faction,
+function StatTile({
+  icon,
+  label,
+  value,
 }: {
-  faction: "good" | "werewolf" | "solo" | "neutral";
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
 }) {
   return (
-    <svg className="profile-faction-mark" viewBox="0 0 16 16" aria-hidden="true">
-      {faction === "good" ? (
-        <path d="M8 1.8 13 4v4.2c0 2.7-1.8 4.6-5 5.8-3.2-1.2-5-3.1-5-5.8V4Z" />
-      ) : faction === "werewolf" ? (
-        <path d="M9.8 2.2A5.4 5.4 0 1 0 13.7 11 4.4 4.4 0 0 1 9.8 2.2Z" />
-      ) : faction === "solo" ? (
-        <path d="M8 1.6 14.2 8 8 14.4 1.8 8Z" />
-      ) : (
-        <>
-          <circle cx="8" cy="8" r="5.4" />
-          <path d="M8 4.2v7.6M4.2 8h7.6" />
-        </>
-      )}
+    <li className="profile-stat">
+      <div className="profile-stat-tile">
+        {icon}
+        <strong>{value}</strong>
+      </div>
+      <span>{label}</span>
+    </li>
+  );
+}
+
+function MatchesMark() {
+  return (
+    <svg viewBox="0 0 18 18" aria-hidden="true">
+      <path d="M3.4 3.4 12 12M10.2 13.8l3.6-3.6M12.6 12.6l2 2" />
+      <path d="M14.6 3.4 6 12M4.2 10.2l3.6 3.6M5.4 12.6l-2 2" />
+    </svg>
+  );
+}
+
+function WinsMark() {
+  return (
+    <svg viewBox="0 0 18 18" aria-hidden="true">
+      <path d="m2.8 6 3.4 2.8L9 3.6l2.8 5.2L15.2 6l-1.4 7.4H4.2Z" />
+      <path d="M4.2 15.4h9.6" />
+    </svg>
+  );
+}
+
+function WinRateMark() {
+  return (
+    <svg viewBox="0 0 18 18" aria-hidden="true">
+      <circle cx="9" cy="9" r="6.2" />
+      <circle cx="9" cy="9" r="3.2" />
+      <circle cx="9" cy="9" r="0.6" />
     </svg>
   );
 }
