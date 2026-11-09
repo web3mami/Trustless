@@ -6,6 +6,11 @@ import { FactionIcon } from "@/components/faction-icon";
 import { PlayerCharacter } from "@/components/main-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { Gender } from "@/components/auth/character";
+import {
+  ACHIEVEMENTS,
+  type Achievement,
+  type AchievementMark as AchievementMarkName,
+} from "@/lib/achievements";
 
 type ProfilePlayer = {
   userId: string;
@@ -83,6 +88,17 @@ export function Profile({
     month: "short",
     year: "numeric",
   }).format(new Date(player.memberSince));
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
+  const unlockedIds = new Set(player.achievements.map((achievement) => achievement.id));
+  const unlockedCount = ACHIEVEMENTS.filter((achievement) =>
+    unlockedIds.has(achievement.id),
+  ).length;
+  const shownAchievements = showAllAchievements
+    ? ACHIEVEMENTS
+    : [
+        ...ACHIEVEMENTS.filter((achievement) => unlockedIds.has(achievement.id)),
+        ...ACHIEVEMENTS.filter((achievement) => !unlockedIds.has(achievement.id)),
+      ].slice(0, 4);
   const shortAddress = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : "";
@@ -195,22 +211,32 @@ export function Profile({
           <section className="profile-section profile-achievements">
             <div className="profile-section-heading">
               <h2>Achievements</h2>
-              <span>{player.achievements.length} / 24 unlocked</span>
+              <span>{unlockedCount} / {ACHIEVEMENTS.length}</span>
             </div>
-            {player.achievements.length > 0 ? (
-              <ul className="profile-records">
-                {player.achievements.map((achievement) => (
-                  <li key={achievement.id}>
-                    <strong>{achievement.name}</strong>
-                    <span>{achievement.description}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <EmptyRecord icon={<AchievementMark />}>
-                No achievements unlocked yet.
-              </EmptyRecord>
-            )}
+            <ul className="profile-achievement-grid">
+              {shownAchievements.map((achievement) => (
+                <AchievementMedallion
+                  key={achievement.id}
+                  achievement={achievement}
+                  unlocked={unlockedIds.has(achievement.id)}
+                />
+              ))}
+              <li>
+                <button
+                  className="profile-achievement profile-achievement-more"
+                  type="button"
+                  aria-expanded={showAllAchievements}
+                  onClick={() => setShowAllAchievements((open) => !open)}
+                >
+                  <span className="profile-medallion">
+                    <ArrowMark open={showAllAchievements} />
+                  </span>
+                  <span className="profile-achievement-name">
+                    {showAllAchievements ? "Show less" : "View all"}
+                  </span>
+                </button>
+              </li>
+            </ul>
           </section>
 
           <section className="profile-section profile-history">
@@ -379,11 +405,81 @@ function WinRateMark() {
   );
 }
 
-function AchievementMark() {
+function AchievementMedallion({
+  achievement,
+  unlocked,
+}: {
+  achievement: Achievement;
+  unlocked: boolean;
+}) {
+  const hidden = achievement.secret && !unlocked;
+  const name = hidden ? "???" : achievement.name;
+  const detail = hidden ? "Hidden achievement" : achievement.description;
+
   return (
-    <svg viewBox="0 0 18 18" aria-hidden="true">
-      <circle cx="9" cy="7" r="4.2" />
-      <path d="m6.2 10.4-1.3 5.2L9 13.4l4.1 2.2-1.3-5.2" />
+    <li
+      className="profile-achievement"
+      data-state={unlocked ? "unlocked" : "locked"}
+      title={`${name}: ${detail}`}
+      aria-label={`${name}, ${unlocked ? "unlocked" : "locked"}. ${detail}`}
+    >
+      <span className="profile-medallion">
+        {unlocked ? <AchievementGlyph mark={achievement.mark} /> : <LockMark />}
+      </span>
+      <span className="profile-achievement-name">{name}</span>
+    </li>
+  );
+}
+
+function AchievementGlyph({ mark }: { mark: AchievementMarkName }) {
+  if (mark === "good" || mark === "werewolf" || mark === "solo" || mark === "neutral") {
+    return <FactionIcon faction={mark} className="profile-medallion-mark" />;
+  }
+
+  return (
+    <svg className="profile-medallion-mark" viewBox="0 0 16 16" aria-hidden="true">
+      {mark === "blood" ? (
+        <path d="M8 2.2c2.4 3.2 3.8 5.3 3.8 7.2a3.8 3.8 0 0 1-7.6 0c0-1.9 1.4-4 3.8-7.2Z" />
+      ) : mark === "eye" ? (
+        <>
+          <path d="M1.8 8c1.6-2.8 3.7-4.2 6.2-4.2s4.6 1.4 6.2 4.2c-1.6 2.8-3.7 4.2-6.2 4.2S3.4 10.8 1.8 8Z" />
+          <circle cx="8" cy="8" r="1.9" />
+        </>
+      ) : mark === "moon" ? (
+        <path d="M10.6 2.4a5.8 5.8 0 1 0 3 8.8 4.6 4.6 0 0 1-3-8.8Z" />
+      ) : mark === "shield" ? (
+        <path d="M8 1.8 13.2 3.8v4c0 3-2.2 5.2-5.2 6.4-3-1.2-5.2-3.4-5.2-6.4v-4Z" />
+      ) : mark === "crown" ? (
+        <>
+          <path d="m2.4 5.2 3 2.6L8 3l2.6 4.8 3-2.6-1.2 6.6H3.6Z" />
+          <path d="M3.6 13.4h8.8" />
+        </>
+      ) : mark === "vote" ? (
+        <>
+          <path d="M2.8 7.4h10.4v6.4H2.8Z" />
+          <path d="m5.6 4.6 1.8 1.8 3.4-3.6" />
+        </>
+      ) : (
+        <path d="m8 1.8 1.8 4 4.4.4-3.3 2.9 1 4.3L8 11.2l-3.9 2.2 1-4.3-3.3-2.9 4.4-.4Z" />
+      )}
+    </svg>
+  );
+}
+
+function LockMark() {
+  return (
+    <svg className="profile-medallion-mark" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M4 7.2h8v6.4H4Z" />
+      <path d="M5.6 7.2V5.4a2.4 2.4 0 0 1 4.8 0v1.8" />
+      <path d="M8 9.8v1.4" />
+    </svg>
+  );
+}
+
+function ArrowMark({ open }: { open: boolean }) {
+  return (
+    <svg className="profile-medallion-mark" viewBox="0 0 16 16" aria-hidden="true">
+      {open ? <path d="M12.6 8H3.4M7 4.4 3.4 8 7 11.6" /> : <path d="M3.4 8h9.2M9 4.4l3.6 3.6L9 11.6" />}
     </svg>
   );
 }
