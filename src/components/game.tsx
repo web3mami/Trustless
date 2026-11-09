@@ -32,6 +32,49 @@ type Read = {
   aura: Aura;
 };
 
+type Player = {
+  userId: string;
+  playerId: string;
+  username: string;
+  gender: Gender;
+  memberSince: string;
+  level: number;
+  xp: number;
+  rank: string;
+  stats: {
+    matches: number;
+    wins: number;
+    correctVotes: number;
+  };
+  achievements: {
+    id: string;
+    name: string;
+    description: string;
+    unlockedAt: string;
+  }[];
+  matchHistory: {
+    id: string;
+    result: "win" | "loss";
+    role: string;
+    faction: "good" | "werewolf" | "solo" | "neutral";
+    xpEarned: number;
+    playedAt: string;
+  }[];
+  factionRecord: Record<
+    "good" | "werewolf" | "solo" | "neutral",
+    { games: number; wins: number }
+  >;
+  mostPlayedRoles: {
+    role: string;
+    games: number;
+  }[];
+};
+
+type ProfileLookup = {
+  userId: string;
+  status: "idle" | "ready" | "error";
+};
+
 type VillagePage =
   | "menu"
   | "play"
@@ -95,7 +138,12 @@ function Village() {
     getClientHydration,
     getServerHydration,
   );
-  const [player, setPlayer] = useState<{ username: string; gender: Gender } | null>(null);
+  const [player, setPlayer] = useState<Player | null>(null);
+  const [profileLookup, setProfileLookup] = useState<ProfileLookup>({
+    userId: "",
+    status: "idle",
+  });
+  const [profileRetry, setProfileRetry] = useState(0);
   const [page, setPage] = useState<VillagePage>("menu");
   const [authError, setAuthError] = useState("");
   const [authPending, setAuthPending] = useState(() => {
@@ -121,6 +169,113 @@ function Village() {
     }, remaining);
     return () => window.clearTimeout(timeout);
   }, [authPending, authenticated]);
+
+  const userId = user?.id ?? "";
+
+  useEffect(() => {
+    if (!authenticated || !userId) return;
+
+    const controller = new AbortController();
+    fetch(`/api/usernames?userId=${encodeURIComponent(userId)}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Profile lookup failed");
+        return response.json() as Promise<{
+          profile?: {
+            userId?: unknown;
+            playerId?: unknown;
+            username?: unknown;
+            gender?: unknown;
+            memberSince?: unknown;
+            level?: unknown;
+            xp?: unknown;
+            rank?: unknown;
+            stats?: {
+              matches?: unknown;
+              wins?: unknown;
+              correctVotes?: unknown;
+            };
+            achievements?: unknown;
+            matchHistory?: unknown;
+            factionRecord?: unknown;
+            mostPlayedRoles?: unknown;
+          } | null;
+        }>;
+      })
+      .then(({ profile }) => {
+        if (
+          profile &&
+          profile.userId === userId &&
+          typeof profile.username === "string" &&
+          (profile.gender === "male" ||
+            profile.gender === "female" ||
+            profile.gender === "other")
+        ) {
+          setPlayer({
+            userId,
+            playerId:
+              typeof profile.playerId === "string" ? profile.playerId : "",
+            username: profile.username,
+            gender: profile.gender,
+            memberSince:
+              typeof profile.memberSince === "string"
+                ? profile.memberSince
+                : new Date().toISOString(),
+            level: typeof profile.level === "number" ? profile.level : 1,
+            xp: typeof profile.xp === "number" ? profile.xp : 0,
+            rank: typeof profile.rank === "string" ? profile.rank : "Unranked",
+            stats: {
+              matches:
+                typeof profile.stats?.matches === "number"
+                  ? profile.stats.matches
+                  : 0,
+              wins:
+                typeof profile.stats?.wins === "number"
+                  ? profile.stats.wins
+                  : 0,
+              correctVotes:
+                typeof profile.stats?.correctVotes === "number"
+                  ? profile.stats.correctVotes
+                  : 0,
+            },
+            achievements: Array.isArray(profile.achievements)
+              ? (profile.achievements as Player["achievements"])
+              : [],
+            matchHistory: Array.isArray(profile.matchHistory)
+              ? (profile.matchHistory as Player["matchHistory"])
+              : [],
+            factionRecord:
+              profile.factionRecord &&
+              typeof profile.factionRecord === "object"
+                ? (profile.factionRecord as Player["factionRecord"])
+                : {
+                    good: { games: 0, wins: 0 },
+                    werewolf: { games: 0, wins: 0 },
+                    solo: { games: 0, wins: 0 },
+                    neutral: { games: 0, wins: 0 },
+                  },
+            mostPlayedRoles: Array.isArray(profile.mostPlayedRoles)
+              ? (profile.mostPlayedRoles as Player["mostPlayedRoles"])
+              : [],
+          });
+        } else {
+          setPlayer(null);
+        }
+        sessionStorage.removeItem(AUTH_PENDING_KEY);
+        setAuthPending(false);
+        setProfileLookup({ userId, status: "ready" });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        sessionStorage.removeItem(AUTH_PENDING_KEY);
+        setAuthPending(false);
+        setProfileLookup({ userId, status: "error" });
+      });
+
+    return () => controller.abort();
+  }, [authenticated, profileRetry, userId]);
 
   function clearAuthPending() {
     sessionStorage.removeItem(AUTH_PENDING_KEY);
@@ -150,24 +305,45 @@ function Village() {
       />
     );
   }
-  if (!player) {
+  if (
+    !userId ||
+    profileLookup.userId !== userId ||
+    profileLookup.status === "idle"
+  ) {
+    return <Login ready={ready} verifying />;
+  }
+  if (profileLookup.status === "error") {
+    return (
+      <ProfileLookupError
+        onRetry={() => {
+          setProfileLookup({ userId: "", status: "idle" });
+          setProfileRetry((current) => current + 1);
+        }}
+        onSignOut={() => void logout()}
+      />
+    );
+  }
+
+  const activePlayer = player?.userId === userId ? player : null;
+  if (!activePlayer) {
     return (
       <Character
-        userId={user?.id ?? ""}
+        userId={userId}
         onBack={() => {
           clearAuthPending();
           void logout();
         }}
-        onDone={(nextPlayer) => {
+        onDone={() => {
           clearAuthPending();
-          setPlayer(nextPlayer);
+          setProfileLookup({ userId: "", status: "idle" });
+          setProfileRetry((current) => current + 1);
         }}
       />
     );
   }
 
   if (page === "profile") {
-    return <Profile alias={player.username} onBack={() => setPage("menu")} />;
+    return <Profile player={activePlayer} onBack={() => setPage("menu")} />;
   }
   if (page === "settings") return <Settings onBack={() => setPage("menu")} />;
   if (
@@ -186,7 +362,7 @@ function Village() {
   if (page === "menu") {
     return (
       <MainMenu
-        gender={player.gender}
+        gender={activePlayer.gender}
         onPlay={() => setPage("play-coming")}
         onInventory={() => setPage("inventory")}
         onProfile={() => setPage("profile")}
@@ -199,11 +375,38 @@ function Village() {
 
   return (
     <Table
-      you={player.username}
+      you={activePlayer.username}
       onLeave={() => setPage("menu")}
       onProfile={() => setPage("profile")}
       onSettings={() => setPage("settings")}
     />
+  );
+}
+
+function ProfileLookupError({
+  onRetry,
+  onSignOut,
+}: {
+  onRetry: () => void;
+  onSignOut: () => void;
+}) {
+  return (
+    <main className="room account">
+      <ThemeToggle className="account-theme-toggle" />
+      <div className="gate-card">
+        <p className="kicker">Identity unavailable</p>
+        <h1 className="display">Could not load your profile</h1>
+        <p className="lede">Check your connection and try again.</p>
+        <div className="account-actions">
+          <button className="primary" type="button" onClick={onRetry}>
+            Try again
+          </button>
+          <button className="text-btn" type="button" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </main>
   );
 }
 

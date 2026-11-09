@@ -59,10 +59,16 @@ export function MainMenu({
   );
 }
 
-function PlayerCharacter({ gender }: { gender: Gender }) {
+export function PlayerCharacter({
+  gender,
+  className = "main-menu-character",
+}: {
+  gender: Gender;
+  className?: string;
+}) {
   return (
     <div
-      className="main-menu-character"
+      className={className}
       role="img"
       aria-label={`Default ${gender} player character`}
     >
