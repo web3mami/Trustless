@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
+import { roleIdFor, toFaction, type Faction, type RoleStat } from "@/lib/roles";
 
 type Gender = "male" | "female" | "other";
-type Faction = "good" | "werewolf" | "solo" | "neutral";
 
 type FactionRecord = Record<Faction, { games: number; wins: number }>;
 
@@ -34,10 +34,7 @@ export type PlayerProfile = {
     playedAt: string;
   }[];
   factionRecord: FactionRecord;
-  mostPlayedRoles: {
-    role: string;
-    games: number;
-  }[];
+  roleStats: RoleStat[];
 };
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -211,12 +208,15 @@ export async function getProfile(userId: string): Promise<PlayerProfile | null> 
       GROUP BY faction
     `,
     sql!`
-      SELECT role, COUNT(*)::int AS games
+      SELECT
+        role,
+        (array_agg(faction ORDER BY played_at DESC))[1] AS faction,
+        COUNT(*)::int AS games,
+        COUNT(*) FILTER (WHERE result = 'win')::int AS wins
       FROM match_history
       WHERE privy_user_id = ${userId}
       GROUP BY role
-      ORDER BY games DESC, role ASC
-      LIMIT 3
+      ORDER BY games DESC, wins DESC, role ASC
     `,
   ]);
   const stats = statsRows[0] as {
@@ -265,19 +265,23 @@ export async function getProfile(userId: string): Promise<PlayerProfile | null> 
       id: String(match.id),
       result: match.result === "win" ? ("win" as const) : ("loss" as const),
       role: String(match.role),
-      faction:
-        match.faction === "werewolf" ||
-        match.faction === "solo" ||
-        match.faction === "neutral"
-          ? match.faction
-          : "good",
+      faction: toFaction(match.faction),
       xpEarned: Number(match.xp_earned),
       playedAt: new Date(String(match.played_at)).toISOString(),
     })),
     factionRecord,
-    mostPlayedRoles: roleRows.map((role) => ({
-      role: String(role.role),
-      games: Number(role.games),
-    })),
+    roleStats: roleRows.map((role) => {
+      const gamesPlayed = Number(role.games);
+      const wins = Number(role.wins);
+      return {
+        roleId: roleIdFor(String(role.role)),
+        roleName: String(role.role),
+        faction: toFaction(role.faction),
+        gamesPlayed,
+        wins,
+        losses: gamesPlayed - wins,
+        winRate: gamesPlayed > 0 ? Math.round((wins / gamesPlayed) * 100) : 0,
+      };
+    }),
   };
 }

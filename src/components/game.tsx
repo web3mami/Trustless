@@ -10,6 +10,7 @@ import { Opening } from "@/components/opening/index";
 import { hasPrivyApp } from "@/components/providers";
 import { MainMenu } from "@/components/main-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import type { RoleStat } from "@/lib/roles";
 import {
   AURA_LABEL,
   DEAL,
@@ -64,10 +65,7 @@ type Player = {
     "good" | "werewolf" | "solo" | "neutral",
     { games: number; wins: number }
   >;
-  mostPlayedRoles: {
-    role: string;
-    games: number;
-  }[];
+  roleStats: RoleStat[];
 };
 
 type ProfileLookup = {
@@ -200,7 +198,7 @@ function Village() {
             achievements?: unknown;
             matchHistory?: unknown;
             factionRecord?: unknown;
-            mostPlayedRoles?: unknown;
+            roleStats?: unknown;
           } | null;
         }>;
       })
@@ -256,8 +254,8 @@ function Village() {
                     solo: { games: 0, wins: 0 },
                     neutral: { games: 0, wins: 0 },
                   },
-            mostPlayedRoles: Array.isArray(profile.mostPlayedRoles)
-              ? (profile.mostPlayedRoles as Player["mostPlayedRoles"])
+            roleStats: Array.isArray(profile.roleStats)
+              ? (profile.roleStats as Player["roleStats"])
               : [],
           });
         } else {

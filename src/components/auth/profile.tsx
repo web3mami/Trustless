@@ -11,6 +11,7 @@ import {
   type Achievement,
   type AchievementMark as AchievementMarkName,
 } from "@/lib/achievements";
+import { FACTION_LABEL, type RoleStat } from "@/lib/roles";
 
 type ProfilePlayer = {
   userId: string;
@@ -44,10 +45,7 @@ type ProfilePlayer = {
     "good" | "werewolf" | "solo" | "neutral",
     { games: number; wins: number }
   >;
-  mostPlayedRoles: {
-    role: string;
-    games: number;
-  }[];
+  roleStats: RoleStat[];
 };
 
 export function Profile({
@@ -271,20 +269,23 @@ export function Profile({
           </section>
 
           <section className="profile-section profile-roles">
-            <h2>Most Played Roles</h2>
-            {player.mostPlayedRoles.length > 0 ? (
-              <ol className="profile-role-list">
-                {player.mostPlayedRoles.map((role) => (
-                  <li key={role.role}>
-                    <span>{role.role}</span>
-                    <strong>{role.games} games</strong>
+            <h2>Role Stats</h2>
+            {player.roleStats.length > 0 ? (
+              <ul className="profile-role-grid">
+                {player.roleStats.map((stat) => (
+                  <li key={stat.roleId}>
+                    <RoleStatCard stat={stat} />
                   </li>
                 ))}
-              </ol>
+              </ul>
             ) : (
-              <EmptyRecord icon={<RoleMark />}>
-                No roles played yet.
-              </EmptyRecord>
+              <div className="profile-role-empty">
+                <RoleMark />
+                <div>
+                  <strong>No role stats yet</strong>
+                  <span>Play your first match to start building your role record.</span>
+                </div>
+              </div>
             )}
           </section>
         </div>
@@ -402,6 +403,65 @@ function WinRateMark() {
       <circle cx="9" cy="9" r="3.2" />
       <circle cx="9" cy="9" r="0.6" />
     </svg>
+  );
+}
+
+function RoleStatCard({
+  stat,
+  onSelect,
+}: {
+  stat: RoleStat;
+  onSelect?: (stat: RoleStat) => void;
+}) {
+  const monogram = stat.roleName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+  const content = (
+    <>
+      <div className="profile-role-head">
+        <span className="profile-role-emblem" aria-hidden="true">
+          {monogram}
+        </span>
+        <div className="profile-role-title">
+          <strong>{stat.roleName}</strong>
+          <span className="profile-role-faction">
+            <FactionIcon faction={stat.faction} className="profile-role-faction-mark" />
+            {FACTION_LABEL[stat.faction]}
+          </span>
+        </div>
+      </div>
+      <div className="profile-role-numbers">
+        <span className="profile-role-wins">
+          <strong>{stat.wins}</strong> {stat.wins === 1 ? "Win" : "Wins"}
+        </span>
+        <span>{stat.gamesPlayed} Played</span>
+        <span>
+          <strong>{stat.winRate}%</strong> Win rate
+        </span>
+      </div>
+      <div className="profile-role-bar" aria-hidden="true">
+        <span style={{ width: `${stat.winRate}%` }} />
+      </div>
+    </>
+  );
+
+  return onSelect ? (
+    <button
+      className="profile-role-card"
+      type="button"
+      data-faction={stat.faction}
+      onClick={() => onSelect(stat)}
+    >
+      {content}
+    </button>
+  ) : (
+    <article className="profile-role-card" data-faction={stat.faction}>
+      {content}
+    </article>
   );
 }
 
