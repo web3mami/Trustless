@@ -2777,49 +2777,77 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   }
 
   .profile-identity {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: 8px;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: end;
+    gap: 14px;
     min-height: 0;
-    padding: 18px 16px 18px;
+    padding: 16px 14px 0;
   }
 
   .profile-crest {
-    top: 4px;
-    left: 50%;
-    width: min(100%, 420px);
+    top: auto;
+    bottom: 0;
+    left: -14px;
+    width: 250px;
     height: auto;
-    transform: translateX(-34%);
   }
 
   .profile-portrait {
-    width: min(100%, 240px);
-    height: 220px;
-    -webkit-mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
-    mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
+    width: 112px;
+    height: 168px;
   }
 
   .profile-avatar-character {
-    bottom: -56px;
-    width: 220px;
-    height: 340px;
+    bottom: -30px;
+    width: 128px;
+    height: 208px;
   }
 
   .profile-identity-copy {
-    width: 100%;
+    min-width: 0;
+    padding-bottom: 14px;
   }
 
   .profile-identity-copy h1 {
-    font-size: 44px;
+    font-size: 34px;
+    overflow-wrap: anywhere;
+  }
+
+  .profile-public-id strong {
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+
+  .profile-verified {
+    margin-top: 7px;
+    font-size: 9px;
+    letter-spacing: 0.1em;
   }
 
   .profile-progression {
     max-width: none;
-    margin-top: 18px;
+    margin-top: 12px;
+  }
+
+  .profile-level-line {
+    gap: 14px;
+    font-size: 10px;
+  }
+
+  .profile-level-line strong {
+    margin-left: 5px;
+    font-size: 22px;
+  }
+
+  .profile-xp-row {
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 9px;
   }
 
   .profile-member {
-    margin-top: 16px;
+    margin-top: 10px;
+    font-size: 11px;
   }
 
   .profile-section {
