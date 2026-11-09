@@ -31,8 +31,11 @@ const themeBootScript = `
   try {
     let theme = localStorage.getItem("trustless-theme") || "day";
     if (theme === "night") theme = "moonlit";
-    const valid = ["day", "blue-hour", "moonlit", "system"];
-    if (!valid.includes(theme)) theme = "day";
+    const valid = ["day", "moonlit", "system"];
+    if (!valid.includes(theme)) {
+      theme = "day";
+      localStorage.setItem("trustless-theme", theme);
+    }
     const resolved =
       theme === "system"
         ? (matchMedia("(prefers-color-scheme: dark)").matches ? "moonlit" : "day")

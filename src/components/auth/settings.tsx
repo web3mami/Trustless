@@ -22,13 +22,6 @@ export function Settings({ onBack }: { onBack: () => void }) {
             Village Day
           </button>
           <button
-            className={theme === "blue-hour" ? "primary" : "text-btn"}
-            type="button"
-            onClick={() => setTheme("blue-hour")}
-          >
-            Blue Hour
-          </button>
-          <button
             className={theme === "moonlit" ? "primary" : "text-btn"}
             type="button"
             onClick={() => setTheme("moonlit")}

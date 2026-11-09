@@ -10,7 +10,7 @@ import {
 
 export const THEME_KEY = "trustless-theme";
 
-export type Theme = "day" | "blue-hour" | "moonlit" | "system";
+export type Theme = "day" | "moonlit" | "system";
 
 const ThemeContext = createContext<{
   theme: Theme;
@@ -28,12 +28,7 @@ function readStoredTheme(): Theme {
   try {
     const stored = localStorage.getItem(THEME_KEY);
     if (stored === "night") return "moonlit";
-    if (
-      stored === "day" ||
-      stored === "blue-hour" ||
-      stored === "moonlit" ||
-      stored === "system"
-    ) {
+    if (stored === "day" || stored === "moonlit" || stored === "system") {
       return stored;
     }
   } catch {

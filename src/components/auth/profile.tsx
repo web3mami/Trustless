@@ -79,7 +79,7 @@ export function Profile({
   const xpGoal = 100;
   const xpProgress = Math.min(100, Math.max(0, (player.xp / xpGoal) * 100));
   const memberSince = new Intl.DateTimeFormat("en-US", {
-    month: "long",
+    month: "short",
     year: "numeric",
   }).format(new Date(player.memberSince));
   const shortAddress = address
@@ -109,6 +109,18 @@ export function Profile({
         <p className="kicker profile-page-label">Player Profile</p>
 
         <header className="profile-identity">
+          <svg className="profile-crest" viewBox="0 0 460 320" aria-hidden="true">
+            <path d="M18 86c78-52 150-30 214 20 46 36 98 42 150 18" />
+            <path d="M34 124c68-38 132-18 190 26 40 30 86 36 136 16" />
+            <circle cx="22" cy="90" r="3.2" />
+            <circle cx="126" cy="52" r="2.5" />
+            <circle cx="228" cy="104" r="3" />
+            <circle cx="348" cy="78" r="2.6" />
+            <circle cx="438" cy="112" r="2.2" />
+            <circle className="profile-crest-ring" cx="156" cy="128" r="96" />
+            <circle className="profile-crest-ring" cx="156" cy="128" r="68" />
+            <path d="M156 44v168M72 128h168" />
+          </svg>
           <div className="profile-portrait">
             <PlayerCharacter
               gender={player.gender}
@@ -119,41 +131,34 @@ export function Profile({
           <div className="profile-identity-copy">
             <h1 className="display">{player.username}</h1>
             <p className="profile-public-id">
-              <span>Player ID</span>
-              <strong>{player.playerId}</strong>
+              <strong aria-label={`Player ID ${player.playerId}`}>{player.playerId}</strong>
             </p>
-            <dl className="profile-passport-meta">
-              <div>
-                <dt>Member since</dt>
-                <dd>{memberSince}</dd>
-              </div>
-              <div>
-                <dt>Network status</dt>
-                <dd><span className="profile-status-dot" />Verified</dd>
-              </div>
-            </dl>
-          </div>
+            <p className="profile-verified">
+              <span className="profile-status-dot" />
+              Network verified
+            </p>
 
-          <div className="profile-progression">
-            <div>
-              <span>Level</span>
-              <strong>{player.level}</strong>
+            <div className="profile-progression">
+              <div className="profile-level-line">
+                <span>Level <strong>{player.level}</strong></span>
+                <span>{player.rank}</span>
+              </div>
+              <div className="profile-xp-row">
+                <div
+                  className="profile-xp-track"
+                  role="progressbar"
+                  aria-label="Experience progress"
+                  aria-valuemin={0}
+                  aria-valuemax={xpGoal}
+                  aria-valuenow={Math.min(player.xp, xpGoal)}
+                >
+                  <span style={{ width: `${xpProgress}%` }} />
+                </div>
+                <span>{player.xp} / {xpGoal} XP</span>
+              </div>
             </div>
-            <p>{player.rank}</p>
-            <div className="profile-xp-copy">
-              <span>XP</span>
-              <span>{player.xp} / {xpGoal} XP</span>
-            </div>
-            <div
-              className="profile-xp-track"
-              role="progressbar"
-              aria-label="Experience progress"
-              aria-valuemin={0}
-              aria-valuemax={xpGoal}
-              aria-valuenow={Math.min(player.xp, xpGoal)}
-            >
-              <span style={{ width: `${xpProgress}%` }} />
-            </div>
+
+            <p className="profile-member">Member since {memberSince}</p>
           </div>
         </header>
 
