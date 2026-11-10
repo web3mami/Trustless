@@ -70,7 +70,7 @@ type Player = {
 
 type ProfileLookup = {
   userId: string;
-  status: "idle" | "ready" | "error";
+  status: "idle" | "ready" | "error" | "banned";
 };
 
 type VillagePage =
@@ -130,7 +130,7 @@ export function Game({ initialOpened = false }: { initialOpened?: boolean }) {
 }
 
 function Village() {
-  const { ready, authenticated, logout, user } = usePrivy();
+  const { ready, authenticated, logout, user, getAccessToken } = usePrivy();
   const hydrated = useSyncExternalStore(
     subscribeToHydration,
     getClientHydration,
@@ -174,11 +174,16 @@ function Village() {
     if (!authenticated || !userId) return;
 
     const controller = new AbortController();
-    fetch(`/api/usernames?userId=${encodeURIComponent(userId)}`, {
-      cache: "no-store",
-      signal: controller.signal,
-    })
+    getAccessToken()
+      .then((token) =>
+        fetch("/api/usernames", {
+          cache: "no-store",
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+          signal: controller.signal,
+        }),
+      )
       .then(async (response) => {
+        if (response.status === 403) return { banned: true as const };
         if (!response.ok) throw new Error("Profile lookup failed");
         return response.json() as Promise<{
           profile?: {
@@ -202,7 +207,14 @@ function Village() {
           } | null;
         }>;
       })
-      .then(({ profile }) => {
+      .then((body) => {
+        if ("banned" in body) {
+          sessionStorage.removeItem(AUTH_PENDING_KEY);
+          setAuthPending(false);
+          setProfileLookup({ userId, status: "banned" });
+          return;
+        }
+        const { profile } = body;
         if (
           profile &&
           profile.userId === userId &&
@@ -273,7 +285,7 @@ function Village() {
       });
 
     return () => controller.abort();
-  }, [authenticated, profileRetry, userId]);
+  }, [authenticated, getAccessToken, profileRetry, userId]);
 
   function clearAuthPending() {
     sessionStorage.removeItem(AUTH_PENDING_KEY);
@@ -309,6 +321,9 @@ function Village() {
     profileLookup.status === "idle"
   ) {
     return <Login ready={ready} verifying />;
+  }
+  if (profileLookup.status === "banned") {
+    return <AccountSuspended onSignOut={() => void logout()} />;
   }
   if (profileLookup.status === "error") {
     return (
@@ -400,6 +415,24 @@ function ProfileLookupError({
             Try again
           </button>
           <button className="text-btn" type="button" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function AccountSuspended({ onSignOut }: { onSignOut: () => void }) {
+  return (
+    <main className="room account">
+      <ThemeToggle className="account-theme-toggle" />
+      <div className="gate-card">
+        <p className="kicker">Account suspended</p>
+        <h1 className="display">This account can’t play right now</h1>
+        <p className="lede">It has been suspended from TRUSTLESS.</p>
+        <div className="account-actions">
+          <button className="primary" type="button" onClick={onSignOut}>
             Sign out
           </button>
         </div>

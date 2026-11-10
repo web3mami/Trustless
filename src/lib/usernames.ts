@@ -38,15 +38,15 @@ export type PlayerProfile = {
 };
 
 const databaseUrl = process.env.DATABASE_URL;
-const sql = databaseUrl ? neon(databaseUrl) : null;
+export const sql = databaseUrl ? neon(databaseUrl) : null;
 
 const state = globalThis as typeof globalThis & {
-  __trustlessProfilesReadyV3?: Promise<void>;
+  __trustlessProfilesReadyV4?: Promise<void>;
 };
 
-function prepareProfiles() {
+export function prepareProfiles() {
   if (!sql) return Promise.reject(new Error("DATABASE_URL is not configured"));
-  state.__trustlessProfilesReadyV3 ??= (async () => {
+  state.__trustlessProfilesReadyV4 ??= (async () => {
     await sql`
       CREATE TABLE IF NOT EXISTS profiles (
         privy_user_id TEXT PRIMARY KEY,
@@ -65,6 +65,7 @@ function prepareProfiles() {
     await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS xp INTEGER NOT NULL DEFAULT 0`;
     await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS rank TEXT NOT NULL DEFAULT 'Unranked'`;
     await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS player_id TEXT`;
+    await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ`;
     await sql`
       UPDATE profiles
       SET player_id = 'TRST-' || upper(substr(md5(privy_user_id), 1, 6))
@@ -108,7 +109,7 @@ function prepareProfiles() {
       )
     `;
   })();
-  return state.__trustlessProfilesReadyV3;
+  return state.__trustlessProfilesReadyV4;
 }
 
 export async function claimUsername(
@@ -123,6 +124,7 @@ export async function claimUsername(
 
   try {
     await prepareProfiles();
+    if (await isBanned(userId)) return "banned" as const;
     await sql!`
       INSERT INTO profiles (privy_user_id, player_id, username, gender)
       VALUES (
@@ -149,6 +151,16 @@ export async function claimUsername(
   }
 
   return "ok" as const;
+}
+
+export async function isBanned(userId: string) {
+  await prepareProfiles();
+  const rows = await sql!`
+    SELECT 1 FROM profiles
+    WHERE privy_user_id = ${userId} AND banned_at IS NOT NULL
+    LIMIT 1
+  `;
+  return rows.length > 0;
 }
 
 export async function getProfile(userId: string): Promise<PlayerProfile | null> {

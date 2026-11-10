@@ -1,5 +1,6 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useId, useState } from "react";
 import { DayScene } from "@/components/auth/day-scene";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -21,6 +22,7 @@ export function Character({
   onBack: () => void;
   onDone: (player: { username: string; gender: Gender }) => void;
 }) {
+  const { getAccessToken } = usePrivy();
   const genderName = useId();
   const [username, setUsername] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
@@ -33,10 +35,14 @@ export function Character({
     setBusy(true);
     setError("");
     try {
+      const token = await getAccessToken();
       const response = await fetch("/api/usernames", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: name, userId, gender: chosen }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify({ username: name, gender: chosen }),
       });
       if (response.status === 409) {
         setError("This username already exists.");
