@@ -124,19 +124,8 @@ export function Profile({
         <p className="kicker profile-page-label">Player Profile</p>
 
         <header className="profile-identity">
-          <svg className="profile-crest" viewBox="0 0 460 320" aria-hidden="true">
-            <path d="M18 86c78-52 150-30 214 20 46 36 98 42 150 18" />
-            <path d="M34 124c68-38 132-18 190 26 40 30 86 36 136 16" />
-            <circle cx="22" cy="90" r="3.2" />
-            <circle cx="126" cy="52" r="2.5" />
-            <circle cx="228" cy="104" r="3" />
-            <circle cx="348" cy="78" r="2.6" />
-            <circle cx="438" cy="112" r="2.2" />
-            <circle className="profile-crest-ring" cx="156" cy="128" r="96" />
-            <circle className="profile-crest-ring" cx="156" cy="128" r="68" />
-            <path d="M156 44v168M72 128h168" />
-          </svg>
           <div className="profile-portrait">
+            <ProfileCrest />
             <PlayerCharacter
               gender={player.gender}
               className="profile-avatar-character"
@@ -569,6 +558,27 @@ function AchievementGlyph({ mark }: { mark: AchievementMarkName }) {
       ) : (
         <path d="m8 1.8 1.8 4 4.4.4-3.3 2.9 1 4.3L8 11.2l-3.9 2.2 1-4.3-3.3-2.9 4.4-.4Z" />
       )}
+    </svg>
+  );
+}
+
+function ProfileCrest() {
+  const seats = Array.from({ length: 16 }, (_, index) => {
+    const turn = -0.3 + (index / 15) * 0.6;
+    const angle = turn * Math.PI * 2 - Math.PI / 2;
+    return {
+      cx: 100 + Math.cos(angle) * 72,
+      cy: 104 + Math.sin(angle) * 72,
+    };
+  });
+
+  return (
+    <svg className="profile-crest" viewBox="0 0 200 200" aria-hidden="true">
+      <path d="M88 22a14 14 0 0 1 24-8" />
+      <path d="M31.5 126A72 72 0 1 1 168.5 126" />
+      {seats.map((seat, index) => (
+        <circle key={index} className="seat" cx={seat.cx} cy={seat.cy} r="2.15" />
+      ))}
     </svg>
   );
 }

@@ -10,6 +10,7 @@ import { Opening } from "@/components/opening/index";
 import { hasPrivyApp } from "@/components/providers";
 import { MainMenu } from "@/components/main-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { RolesPage } from "@/components/roles/roles-page";
 import type { RoleStat } from "@/lib/roles";
 import {
   AURA_LABEL,
@@ -355,6 +356,9 @@ function Village() {
     );
   }
 
+  if (page === "roles") {
+    return <RolesPage onBack={() => setPage("menu")} />;
+  }
   if (page === "profile") {
     return <Profile player={activePlayer} onBack={() => setPage("menu")} />;
   }
@@ -362,7 +366,6 @@ function Village() {
   if (
     page === "play-coming" ||
     page === "inventory" ||
-    page === "roles" ||
     page === "shop"
   ) {
     return (
@@ -445,7 +448,7 @@ function MenuPlaceholder({
   title,
   onBack,
 }: {
-  title: "play" | "inventory" | "roles" | "shop";
+  title: "play" | "inventory" | "shop";
   onBack: () => void;
 }) {
   return (

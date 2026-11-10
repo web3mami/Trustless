@@ -34,11 +34,10 @@ export function FactionIcon({
           <path d="M5.2 7.6l1.6.8M10.8 7.6l-1.6.8M7.3 11.4h1.4" />
         </>
       ) : faction === "solo" ? (
-        <>
-          <path d="M8 1.6 9.7 3.8v5.6H6.3V3.8Z" />
-          <path d="M8 4.2v3.8M4.2 9.4h7.6M8 9.4v2.8" />
-          <circle cx="8" cy="13.3" r="0.9" />
-        </>
+        <path
+          className="knife"
+          d="M1.9 14 6 7.2 5 6 6.3 4.9 7.6 6.2 12 2 13.5 1.8 14.4 3.2 13.2 4.4 9 8.4 10.4 10 9 11 8.2 9.4Z"
+        />
       ) : (
         <>
           <circle cx="8" cy="2.6" r="0.7" />

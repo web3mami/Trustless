@@ -11,6 +11,7 @@ import {
   StatusBadge,
   dateTime,
 } from "@/components/admin/ui";
+import { FACTION_NAME, ROLES, profileFaction } from "@/lib/game";
 import { FACTION_LABEL, type Faction } from "@/lib/roles";
 import { REPORT_CATEGORIES, RESTRICTION_KINDS, type AdminIdentity, type MatchRecord, type Page, type Report, type Restriction } from "@/lib/admin/types";
 import {
@@ -662,12 +663,45 @@ function FactionDefinitions() {
 
 function RoleDefinitions() {
   return (
-    <Panel title="Role definitions">
-      <EmptyState
-        title="Role editor is not connected"
-        body="Create, duplicate, enable and archive will write to the content store. Performance uses completed matches today."
-      />
-    </Panel>
+    <div className="admin-stack">
+      <p className="admin-note">
+        This is the canonical 16-player roster. Names, factions, charges, and resolution priority are locked here so a partial edit cannot break the night.
+      </p>
+      {(["village", "werewolf", "solo", "neutral"] as const).map((faction) => (
+        <Panel key={faction} title={FACTION_NAME[faction]}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Category</th>
+                <th>Phase</th>
+                <th>Action</th>
+                <th>Targets</th>
+                <th>Charges</th>
+                <th>Priority</th>
+                <th>Win</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ROLES.filter((role) => role.faction === faction).map((role) => (
+                <tr key={role.id}>
+                  <td>
+                    <FactionBadge faction={profileFaction(faction)} /> {role.name}
+                  </td>
+                  <td>{role.category}</td>
+                  <td>{role.phase}</td>
+                  <td>{role.actionType ? `${role.actionScope} ${role.actionType}` : "None"}</td>
+                  <td>{role.targetType === "none" ? "None" : role.maxTargets}</td>
+                  <td>{role.charges ?? "Unlimited"}</td>
+                  <td>{role.actionPriority}</td>
+                  <td>{role.winCondition}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+      ))}
+    </div>
   );
 }
 
