@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requestUserId } from "@/lib/admin-auth";
+import { requestUserId } from "@/lib/privy-auth";
 import { claimUsername, getProfile, isBanned } from "@/lib/usernames";
 
 export const runtime = "nodejs";

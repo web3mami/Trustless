@@ -41,12 +41,12 @@ const databaseUrl = process.env.DATABASE_URL;
 export const sql = databaseUrl ? neon(databaseUrl) : null;
 
 const state = globalThis as typeof globalThis & {
-  __trustlessProfilesReadyV4?: Promise<void>;
+  __trustlessProfilesReadyV5?: Promise<void>;
 };
 
 export function prepareProfiles() {
   if (!sql) return Promise.reject(new Error("DATABASE_URL is not configured"));
-  state.__trustlessProfilesReadyV4 ??= (async () => {
+  state.__trustlessProfilesReadyV5 ??= (async () => {
     await sql`
       CREATE TABLE IF NOT EXISTS profiles (
         privy_user_id TEXT PRIMARY KEY,
@@ -108,8 +108,66 @@ export function prepareProfiles() {
         PRIMARY KEY (privy_user_id, achievement_id)
       )
     `;
+    await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS player_restrictions (
+        id BIGSERIAL PRIMARY KEY,
+        privy_user_id TEXT NOT NULL REFERENCES profiles(privy_user_id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        created_by_name TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        expires_at TIMESTAMPTZ,
+        revoked_at TIMESTAMPTZ,
+        revoked_by_name TEXT,
+        revoke_reason TEXT
+      )
+    `;
+    await sql`
+      CREATE INDEX IF NOT EXISTS player_restrictions_user_idx
+      ON player_restrictions (privy_user_id, created_at DESC)
+    `;
+    await sql`
+      INSERT INTO player_restrictions (privy_user_id, kind, reason, created_by_name, created_at)
+      SELECT privy_user_id, 'perm_ban', 'Migrated from the previous ban flag', 'system', banned_at
+      FROM profiles WHERE banned_at IS NOT NULL
+    `;
+    await sql`UPDATE profiles SET banned_at = NULL WHERE banned_at IS NOT NULL`;
+    await sql`
+      CREATE TABLE IF NOT EXISTS player_notes (
+        id BIGSERIAL PRIMARY KEY,
+        privy_user_id TEXT NOT NULL REFERENCES profiles(privy_user_id) ON DELETE CASCADE,
+        admin_name TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS player_username_history (
+        id BIGSERIAL PRIMARY KEY,
+        privy_user_id TEXT NOT NULL REFERENCES profiles(privy_user_id) ON DELETE CASCADE,
+        username TEXT NOT NULL,
+        changed_by TEXT NOT NULL,
+        changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS player_reports (
+        id BIGSERIAL PRIMARY KEY,
+        reporter_id TEXT REFERENCES profiles(privy_user_id) ON DELETE SET NULL,
+        reported_id TEXT NOT NULL REFERENCES profiles(privy_user_id) ON DELETE CASCADE,
+        category TEXT NOT NULL,
+        match_ref TEXT,
+        details TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        resolved_at TIMESTAMPTZ,
+        resolved_by_name TEXT,
+        resolution TEXT
+      )
+    `;
   })();
-  return state.__trustlessProfilesReadyV4;
+  return state.__trustlessProfilesReadyV5;
 }
 
 export async function claimUsername(
@@ -125,19 +183,28 @@ export async function claimUsername(
   try {
     await prepareProfiles();
     if (await isBanned(userId)) return "banned" as const;
-    await sql!`
-      INSERT INTO profiles (privy_user_id, player_id, username, gender)
-      VALUES (
-        ${userId},
-        'TRST-' || upper(substr(md5(${userId}), 1, 6)),
-        ${name},
-        ${gender}
-      )
-      ON CONFLICT (privy_user_id) DO UPDATE SET
-        username = EXCLUDED.username,
-        gender = EXCLUDED.gender,
-        updated_at = now()
-    `;
+    await sql!.transaction([
+      sql!`
+        INSERT INTO player_username_history (privy_user_id, username, changed_by)
+        SELECT privy_user_id, username, 'player' FROM profiles
+        WHERE privy_user_id = ${userId} AND username <> ${name}
+      `,
+      sql!`
+        INSERT INTO profiles (privy_user_id, player_id, username, gender, last_active_at)
+        VALUES (
+          ${userId},
+          'TRST-' || upper(substr(md5(${userId}), 1, 6)),
+          ${name},
+          ${gender},
+          now()
+        )
+        ON CONFLICT (privy_user_id) DO UPDATE SET
+          username = EXCLUDED.username,
+          gender = EXCLUDED.gender,
+          last_active_at = now(),
+          updated_at = now()
+      `,
+    ]);
   } catch (error) {
     if (
       typeof error === "object" &&
@@ -156,8 +223,11 @@ export async function claimUsername(
 export async function isBanned(userId: string) {
   await prepareProfiles();
   const rows = await sql!`
-    SELECT 1 FROM profiles
-    WHERE privy_user_id = ${userId} AND banned_at IS NOT NULL
+    SELECT 1 FROM player_restrictions
+    WHERE privy_user_id = ${userId}
+      AND kind IN ('suspension', 'temp_ban', 'perm_ban')
+      AND revoked_at IS NULL
+      AND (expires_at IS NULL OR expires_at > now())
     LIMIT 1
   `;
   return rows.length > 0;
@@ -187,6 +257,7 @@ export async function getProfile(userId: string): Promise<PlayerProfile | null> 
     | undefined;
 
   if (!row) return null;
+  await sql!`UPDATE profiles SET last_active_at = now() WHERE privy_user_id = ${userId}`;
   const [statsRows, achievementRows, matchRows, factionRows, roleRows] =
     await Promise.all([
     sql!`
