@@ -53,6 +53,7 @@ export function ensureRoleCatalog() {
 export async function listRoleDefinitions(): Promise<RoleDefinition[]> {
   await ensureRoleCatalog();
   await migrateRoleCatalog();
+  await refreshAegisShieldCopy();
   const rows = (await db()`
     SELECT id, definition
     FROM role_definitions
@@ -154,6 +155,33 @@ async function migrateRoleCatalog() {
 function storedRecord(value: unknown): Record<string, unknown> {
   const body = typeof value === "string" ? JSON.parse(value) as unknown : value;
   return isRecord(body) ? body : {};
+}
+
+async function refreshAegisShieldCopy() {
+  const sql = db();
+  const done = (await sql`SELECT key FROM game_settings WHERE key = 'role_catalog_aegis_shields'`) as { key: string }[];
+  if (done.length > 0) return;
+  const catalog = ROLES.find((role) => role.id === "aegis");
+  const rows = (await sql`SELECT definition FROM role_definitions WHERE id = 'aegis'`) as { definition: unknown }[];
+  const stored = rows[0] ? storedRecord(rows[0].definition) : null;
+  if (catalog && stored?.abilityDescription === "Protect with two persistent shields.") {
+    const definition = {
+      ...stored,
+      description: catalog.description,
+      abilityDescription: catalog.abilityDescription,
+      notes: catalog.notes,
+    };
+    await sql`
+      UPDATE role_definitions
+      SET definition = ${JSON.stringify(definition)}::jsonb, updated_at = now(), updated_by_name = 'system'
+      WHERE id = 'aegis'
+    `;
+  }
+  await sql`
+    INSERT INTO game_settings (key, value, updated_by_name)
+    VALUES ('role_catalog_aegis_shields', 'true'::jsonb, 'system')
+    ON CONFLICT (key) DO NOTHING
+  `;
 }
 
 async function markRoleCatalogV2() {

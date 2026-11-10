@@ -180,28 +180,97 @@ describe("investigations", () => {
 });
 
 describe("aegis", () => {
-  it("spends persistent shields on itself and on the protected player", () => {
-    const first = resolveNight(
-      [player("aegis", "aegis"), player("b", "villager"), player("sk", "serial-killer")],
-      [act("cover", "aegis", "protect", ["b"]), act("knife", "sk", "kill", ["b"])],
-    );
-    assert.equal(first.deaths.includes("b"), false);
-    assert.equal(first.players.find((entry) => entry.id === "aegis")?.shieldsRemaining, 1);
-    assert.equal(first.events.some((entry) => entry.code === "AEGIS_SHIELD_CONSUMED"), true);
+  const seats = () => [
+    player("aegis", "aegis"),
+    player("b", "villager"),
+    player("c", "villager"),
+    player("d", "villager"),
+    player("sk", "serial-killer"),
+    player("wolf", "alpha-werewolf"),
+  ];
+  const shield = (result: ReturnType<typeof resolveNight>) =>
+    result.players.find((entry) => entry.id === "aegis")?.shieldsRemaining;
+  const told = (result: ReturnType<typeof resolveNight>) =>
+    result.intel.find((entry) => entry.playerId === "aegis")?.text ?? "";
 
-    const second = resolveNight(first.players, [
+  it("starts with two shields", () => {
+    const night = resolveNight(seats(), [act("cover", "aegis", "protect", ["b"])]);
+    assert.equal(shield(night), 2);
+    assert.equal(night.deaths.length, 0);
+  });
+
+  it("absorbs the first attack on Aegis and leaves one shield", () => {
+    const night = resolveNight(seats(), [
       act("cover", "aegis", "protect", ["b"]),
       act("knife", "sk", "kill", ["aegis"]),
     ]);
-    assert.equal(second.deaths.includes("aegis"), false);
-    assert.equal(second.players.find((entry) => entry.id === "aegis")?.shieldsRemaining, 0);
-    assert.equal(second.events.some((entry) => entry.code === "AEGIS_SHIELDS_DEPLETED"), true);
+    assert.equal(night.deaths.includes("aegis"), false);
+    assert.equal(night.deaths.includes("b"), false);
+    assert.equal(shield(night), 1);
+    assert.equal(told(night), "Your protection was struck. 1 shield remains.");
+    assert.equal(told(night).includes("aegis"), false);
+    assert.equal(told(night).includes("b"), false);
+  });
 
-    const third = resolveNight(second.players, [
+  it("absorbs the first attack on the guarded player without naming the target", () => {
+    const night = resolveNight(seats(), [
       act("cover", "aegis", "protect", ["b"]),
       act("knife", "sk", "kill", ["b"]),
     ]);
-    assert.deepEqual(third.deaths, ["b"]);
+    assert.equal(night.deaths.includes("b"), false);
+    assert.equal(night.deaths.includes("aegis"), false);
+    assert.equal(shield(night), 1);
+    assert.equal(told(night), "Your protection was struck. 1 shield remains.");
+    assert.equal(JSON.stringify(night.intel).includes("b"), false);
+    assert.equal(night.events.filter((entry) => entry.public).some((entry) => entry.message.includes("b")), false);
+  });
+
+  it("kills Aegis when the last shield meets an attack on Aegis", () => {
+    const armed = seats().map((entry) => (entry.id === "aegis" ? { ...entry, shieldsRemaining: 1 } : entry));
+    const night = resolveNight(armed, [
+      act("cover", "aegis", "protect", ["d"]),
+      act("knife", "sk", "kill", ["aegis"]),
+    ]);
+    assert.deepEqual(night.deaths, ["aegis"]);
+    assert.equal(night.players.find((entry) => entry.id === "d")?.alive, true);
+  });
+
+  it("lets Aegis die in place of the guarded player", () => {
+    const armed = seats().map((entry) => (entry.id === "aegis" ? { ...entry, shieldsRemaining: 1 } : entry));
+    const night = resolveNight(armed, [
+      act("cover", "aegis", "protect", ["c"]),
+      act("knife", "sk", "kill", ["c"]),
+    ]);
+    assert.deepEqual(night.deaths, ["aegis"]);
+    assert.equal(night.players.find((entry) => entry.id === "c")?.alive, true);
+    assert.equal(night.events.some((entry) => entry.public && entry.message.includes("c")), false);
+  });
+
+  it("keeps the remaining shield across nights", () => {
+    const first = resolveNight(seats(), [
+      act("cover", "aegis", "protect", ["b"]),
+      act("knife", "sk", "kill", ["b"]),
+    ]);
+    const quiet = resolveNight(first.players, [act("cover", "aegis", "protect", ["c"])]);
+    assert.equal(shield(quiet), 1);
+    assert.equal(quiet.deaths.length, 0);
+    const later = resolveNight(quiet.players, [
+      act("cover", "aegis", "protect", ["c"]),
+      act("knife", "sk", "kill", ["c"]),
+    ]);
+    assert.deepEqual(later.deaths, ["aegis"]);
+    assert.equal(later.players.find((entry) => entry.id === "c")?.alive, true);
+  });
+
+  it("ends the guard as soon as Aegis dies", () => {
+    const armed = seats().map((entry) => (entry.id === "aegis" ? { ...entry, shieldsRemaining: 1 } : entry));
+    const night = resolveNight(armed, [
+      act("cover", "aegis", "protect", ["c"]),
+      act("pack", "wolf", "kill", ["c"], "faction"),
+      act("knife", "sk", "kill", ["c"]),
+    ]);
+    assert.equal(night.deaths.includes("aegis"), true);
+    assert.equal(night.deaths.includes("c"), true);
   });
 });
 

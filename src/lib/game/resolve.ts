@@ -9,8 +9,9 @@
  *    A tracker still reads the target the player selected, even if that
  *    action is blocked and will not resolve.
  * 4. Kills. The pack contributes one faction kill. Solo and other personal
- *    kills are separate. Protection stops every normal kill on that player;
- *    more attackers do not use it up.
+ *    kills are separate. A Doctor's cover stops every normal kill that night.
+ *    Aegis has one shield state: the first qualifying strike is absorbed,
+ *    and the next one kills Aegis.
  * 5. Special effects, such as the Medium's dead channel.
  *
  * An attempt is the action a player submitted. Resolution is what survives
@@ -108,7 +109,7 @@ export function resolveNight(
       const actorRole = roles[players.find((player) => player.id === action.actorId)?.roleId ?? ""];
       if (actorRole?.persistentResource?.type === "shields") {
         aegisCovers.push({ aegisId: action.actorId, targetId: action.targets[0] });
-        events.push(event(action, "resolved", false, "Aegis marks a player with a shield."));
+        events.push(event(action, "resolved", false, "Aegis guards a player."));
         continue;
       }
       protectedIds.add(action.targets[0]);
@@ -150,8 +151,7 @@ export function resolveNight(
         events.push(event(action, "protected", true, `${nameOf(players, targetId)} survived the night.`));
         continue;
       }
-      if (spendAegisShield(players, roles, shields, aegisCovers, targetId, events)) {
-        events.push(event(action, "protected", true, `${nameOf(players, targetId)} survived the night.`));
+      if (resolveAegisStrike(players, roles, shields, aegisCovers, targetId, deaths, events, intel)) {
         continue;
       }
       if (!isAlive(players, targetId) || deaths.has(targetId)) {
@@ -334,47 +334,73 @@ function nameOf(players: EnginePlayer[], playerId: string) {
   return players.find((player) => player.id === playerId)?.name ?? playerId;
 }
 
-function spendAegisShield(
+function resolveAegisStrike(
   players: EnginePlayer[],
   roles: Record<string, RoleDefinition>,
   shields: Map<string, number>,
   covers: { aegisId: string; targetId: string }[],
   targetId: string,
+  deaths: Set<string>,
   events: NightEvent[],
+  intel: PrivateIntel[],
 ) {
+  const aegisId = aegisForStrike(players, roles, shields, covers, targetId, deaths);
+  if (!aegisId) return false;
+  const shieldsLeft = shields.get(aegisId) ?? 0;
+  if (shieldsLeft > 1) {
+    const left = shieldsLeft - 1;
+    shields.set(aegisId, left);
+    const text =
+      left === 1
+        ? "Your protection was struck. 1 shield remains."
+        : `Your protection was struck. ${left} shields remain.`;
+    intel.push({ playerId: aegisId, kind: "note", text });
+    events.push({
+      actorId: aegisId,
+      targetIds: [aegisId],
+      outcome: "protected",
+      public: false,
+      message: text,
+      code: "AEGIS_SHIELD_CONSUMED",
+    });
+    return true;
+  }
+  if (shieldsLeft === 1) {
+    deaths.add(aegisId);
+    events.push({
+      actorId: aegisId,
+      targetIds: [aegisId],
+      outcome: "resolved",
+      public: true,
+      message: `${nameOf(players, aegisId)} was killed.`,
+    });
+    return true;
+  }
+  return false;
+}
+
+function aegisForStrike(
+  players: EnginePlayer[],
+  roles: Record<string, RoleDefinition>,
+  shields: Map<string, number>,
+  covers: { aegisId: string; targetId: string }[],
+  targetId: string,
+  deaths: Set<string>,
+) {
+  if (!isAlive(players, targetId) || deaths.has(targetId)) return undefined;
   const target = players.find((player) => player.id === targetId);
   const ownShield =
     target &&
     roles[target.roleId]?.persistentResource?.type === "shields" &&
-    (shields.get(target.id) ?? 0) > 0
-      ? target.id
-      : undefined;
-  const cover = covers.find(
-    (entry) => entry.targetId === targetId && (shields.get(entry.aegisId) ?? 0) > 0 && isAlive(players, entry.aegisId),
-  );
-  const defenderId = ownShield ?? cover?.aegisId;
-  if (!defenderId) return false;
-  const left = (shields.get(defenderId) ?? 0) - 1;
-  shields.set(defenderId, left);
-  events.push({
-    actorId: defenderId,
-    targetIds: [targetId],
-    outcome: "protected",
-    public: false,
-    message: "AEGIS_SHIELD_CONSUMED",
-    code: "AEGIS_SHIELD_CONSUMED",
-  });
-  if (left === 0) {
-    events.push({
-      actorId: defenderId,
-      targetIds: [targetId],
-      outcome: "no_effect",
-      public: false,
-      message: "AEGIS_SHIELDS_DEPLETED",
-      code: "AEGIS_SHIELDS_DEPLETED",
-    });
-  }
-  return true;
+    (shields.get(target.id) ?? 0) >= 1;
+  if (ownShield) return target.id;
+  return covers.find(
+    (entry) =>
+      entry.targetId === targetId &&
+      (shields.get(entry.aegisId) ?? 0) >= 1 &&
+      isAlive(players, entry.aegisId) &&
+      !deaths.has(entry.aegisId),
+  )?.aegisId;
 }
 
 function event(
