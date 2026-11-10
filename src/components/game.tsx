@@ -379,6 +379,7 @@ function Village() {
   return (
     <Table
       you={activePlayer.username}
+      gender={activePlayer.gender}
       onLeave={() => setPage("menu")}
       onProfile={() => setPage("profile")}
       onSettings={() => setPage("settings")}
@@ -455,11 +456,13 @@ function MenuPlaceholder({
 
 function Table({
   you,
+  gender,
   onLeave,
   onProfile,
   onSettings,
 }: {
   you: string;
+  gender: Gender;
   onLeave: () => void;
   onProfile: () => void;
   onSettings: () => void;
@@ -592,8 +595,8 @@ function Table({
       </header>
 
       <div className="stage">
-        <ol className="roll">
-          {(table?.seats ?? []).map((seat) => {
+        <ol className="board" aria-label="Players">
+          {(table?.seats ?? []).map((seat, index) => {
             const order = picked.indexOf(seat.id) + 1;
             const valid = intent === "vote" ? seat.validVote : seat.validAbility;
             const voted = table?.you.votedName === seat.name && phase === "day";
@@ -601,6 +604,8 @@ function Table({
               <li key={seat.id}>
                 <SeatButton
                   seat={seat}
+                  look={index}
+                  gender={index === 0 ? gender : (BOARD_LOOKS[index]?.gender ?? "other")}
                   you={seat.id === "1"}
                   order={order}
                   showOrder={needed > 1}
@@ -712,8 +717,29 @@ function Table({
   );
 }
 
+const BOARD_LOOKS: { gender: Gender; hair: string; coat: string; skin: string }[] = [
+  { gender: "male", hair: "#1b2832", coat: "#3e5964", skin: "#c48b6a" },
+  { gender: "female", hair: "#2a160f", coat: "#6d4c3d", skin: "#e0b08a" },
+  { gender: "male", hair: "#101820", coat: "#2f4a44", skin: "#a86d4e" },
+  { gender: "other", hair: "#241c28", coat: "#4a4458", skin: "#d7a784" },
+  { gender: "female", hair: "#1a140e", coat: "#5c4632", skin: "#c98962" },
+  { gender: "male", hair: "#0e161c", coat: "#3d4e5c", skin: "#b97b58" },
+  { gender: "female", hair: "#2c1814", coat: "#6a5360", skin: "#e4b894" },
+  { gender: "other", hair: "#16141c", coat: "#3e5348", skin: "#c48b6a" },
+  { gender: "male", hair: "#24180f", coat: "#58483a", skin: "#d09a72" },
+  { gender: "female", hair: "#12161c", coat: "#445868", skin: "#e0b08a" },
+  { gender: "other", hair: "#201610", coat: "#5a4038", skin: "#b97b58" },
+  { gender: "male", hair: "#0c1418", coat: "#2c3e48", skin: "#a86d4e" },
+  { gender: "female", hair: "#2a1c16", coat: "#6a5848", skin: "#e4b894" },
+  { gender: "male", hair: "#1c1814", coat: "#4a4038", skin: "#c98962" },
+  { gender: "other", hair: "#18141e", coat: "#3a4a56", skin: "#d7a784" },
+  { gender: "female", hair: "#140e0c", coat: "#5e463c", skin: "#c48b6a" },
+];
+
 function SeatButton({
   seat,
+  look,
+  gender,
   you,
   order,
   showOrder,
@@ -723,6 +749,8 @@ function SeatButton({
   onPick,
 }: {
   seat: TableView["seats"][number];
+  look: number;
+  gender: Gender;
   you: boolean;
   order: number;
   showOrder: boolean;
@@ -731,27 +759,67 @@ function SeatButton({
   disabled: boolean;
   onPick: () => void;
 }) {
+  const appearance = BOARD_LOOKS[look] ?? BOARD_LOOKS[0];
   return (
     <button
       type="button"
-      className={you ? "seat you" : "seat"}
+      className={you ? "board-seat you" : "board-seat"}
       data-selected={order > 0}
       data-invalid={invalid}
+      data-dead={!seat.alive}
       data-vote={voted}
       aria-pressed={order > 0}
+      aria-label={`${seat.name}${you ? ", you" : ""}${seat.alive ? "" : ", dead"}`}
       disabled={disabled}
       onClick={onPick}
     >
-      <span className="seat-avatar">
-        {order > 0 && showOrder ? <span className="seat-order">{order}</span> : <span className="num">{seat.id.padStart(2, "0")}</span>}
+      <span className="board-avatar">
+        <span className="board-face">
+          <BoardPortrait gender={gender} hair={appearance.hair} coat={appearance.coat} skin={appearance.skin} />
+          <span className="name">{seat.id.padStart(2, "0")} {seat.name}</span>
+          {!seat.alive ? <span className="tag">Dead</span> : null}
+        </span>
+        {order > 0 && showOrder ? <span className="seat-order">{order}</span> : null}
         {voted ? <span className="seat-vote">Vote</span> : null}
       </span>
-      <span className="who">
-        <span className="name">{seat.name}</span>
-        {you ? <span className="tag">You</span> : null}
-        {!seat.alive ? <span className="tag">Dead</span> : null}
-      </span>
     </button>
+  );
+}
+
+function BoardPortrait({
+  gender,
+  hair,
+  coat,
+  skin,
+}: {
+  gender: Gender;
+  hair: string;
+  coat: string;
+  skin: string;
+}) {
+  return (
+    <svg className="board-portrait" viewBox="4 12 56 66" aria-hidden="true">
+      {gender === "female" ? (
+        <path fill={hair} d="M14 42c-1-22 6-34 18-35 13 0 20 12 19 34 0 16-2 26-7 32-4-12-8-16-12-16s-8 4-12 16c-4-8-6-18-6-31Z" />
+      ) : null}
+      <path fill={coat} d="M2 78c4-28 14-40 30-42 16 2 26 14 30 42Z" />
+      <path fill={skin} d="M27 46h10v8c-1.4 4-8.6 4-10 0Z" />
+      <ellipse cx="20" cy="36" rx="2.4" ry="3.4" fill={skin} />
+      <ellipse cx="44" cy="36" rx="2.4" ry="3.4" fill={skin} />
+      <ellipse cx="32" cy="34" rx="12.2" ry="14.2" fill={skin} />
+      {gender === "female" ? (
+        <path fill={hair} d="M18 30c1-16 6-24 14-25 9 1 15 9 15 23l-6-10-8-6-9 5-6 13Z" />
+      ) : gender === "other" ? (
+        <path fill={hair} d="M18 31c1-16 7-24 15-25 10 1 15 10 14 24l-5-9-9-8-10 6-5 12Z" />
+      ) : (
+        <path fill={hair} d="M19 33c1-15 6-23 13-24 9 0 14 8 14 22l-6-8-8-8-8 6-5 12Z" />
+      )}
+      <path stroke="#3a241c" strokeWidth="1.1" fill="none" d="M25.5 34.5c2.2-1.5 4.2-1.3 6 .2M34 34.7c2.2-1.5 4.2-1.3 6 .2" />
+      <circle cx="28" cy="36.6" r="1.05" fill="#24160f" />
+      <circle cx="37.4" cy="36.6" r="1.05" fill="#24160f" />
+      <path d="M27.5 44.2c3 1.8 6 1.8 9 0" fill="none" stroke="#7a4e3c" strokeWidth="1.1" strokeLinecap="round" />
+      <circle cx="32" cy="60" r="2.1" fill="#d4b66c" />
+    </svg>
   );
 }
 
@@ -799,7 +867,7 @@ function ActionPanel({
           ? "No target. Confirm when you are ready."
           : names.length
             ? names.join(", ")
-            : "Tap a player at the table."}
+            : "Tap an avatar."}
       </p>
       <ResultView result={intent === "ability" || intent === "vote" ? table.result : null} />
       {error ? <p className="hint">{error}</p> : null}
