@@ -12,26 +12,13 @@ import { MainMenu } from "@/components/main-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { RolesPage } from "@/components/roles/roles-page";
 import type { RoleStat } from "@/lib/roles";
-import {
-  AURA_LABEL,
-  DEAL,
-  SEATS,
-  type Aura,
-  type Phase,
-  type Seat,
-} from "@/lib/table";
+import type { TableIntent, TableResult, TableView } from "@/lib/game/practice";
 
 type Message = {
   id: string;
   author: string;
   text: string;
   system?: boolean;
-};
-
-type Read = {
-  round: number;
-  seatId: number;
-  aura: Aura;
 };
 
 type Player = {
@@ -379,7 +366,7 @@ function Village() {
     return (
       <MainMenu
         gender={activePlayer.gender}
-        onPlay={() => setPage("play-coming")}
+        onPlay={() => setPage("play")}
         onInventory={() => setPage("inventory")}
         onProfile={() => setPage("profile")}
         onRoles={() => setPage("roles")}
@@ -478,22 +465,40 @@ function Table({
   onSettings: () => void;
 }) {
   const dealRef = useRef<HTMLDialogElement>(null);
-  const [phase, setPhase] = useState<Phase>("night");
-  const [round, setRound] = useState(1);
-  const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [reads, setReads] = useState<Read[]>([]);
-  const [votes, setVotes] = useState<{ round: number; seatId: number }[]>([]);
+  const [table, setTable] = useState<TableView | null>(null);
+  const [intent, setIntent] = useState<TableIntent>("ability");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const [messages, setMessages] = useState<Message[]>(OPENING);
   const [draft, setDraft] = useState("");
 
-  const seats = SEATS.map((seat) =>
-    seat.id === 1 ? { ...seat, name: you } : seat,
-  );
-  const selected = seats.find((seat) => seat.id === selectedId) ?? null;
-  const nightRead = reads.find((read) => read.round === round) ?? null;
-  const vote = votes.find((entry) => entry.round === round) ?? null;
-  const votedSeat = seats.find((seat) => seat.id === vote?.seatId) ?? null;
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/table", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "start", you }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("The table did not open.");
+        return response.json() as Promise<TableView>;
+      })
+      .then((view) => {
+        setTable(view);
+        setIntent(view.you.intents[0] ?? "vote");
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setError("The table did not open.");
+      });
+    return () => controller.abort();
+  }, [you]);
+
+  const phase = table?.phase ?? "night";
+  const needed = intent === "vote" ? 1 : (table?.you.abilityTargets ?? 0);
+  const locked = pending || (intent === "ability" && Boolean(table?.you.submitted));
 
   function speak(author: string, text: string, system = false) {
     setMessages((current) => [
@@ -502,32 +507,55 @@ function Table({
     ]);
   }
 
-  function shiftPhase() {
-    setSelectedId(null);
-    if (phase === "night") {
-      setPhase("day");
-      speak("Table", `Dawn. Day ${round} is in session.`, true);
-      return;
+  async function postTable(body: Record<string, unknown>) {
+    if (!table) return false;
+    setPending(true);
+    setError("");
+    try {
+      const response = await fetch("/api/table", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId: table.matchId, ...body }),
+      });
+      const payload = (await response.json()) as TableView & { error?: string };
+      if (!response.ok) {
+        setError(payload.error ?? "The table refused that action.");
+        return false;
+      }
+      setTable(payload);
+      setPicked([]);
+      if (!payload.you.intents.includes(intent)) setIntent(payload.you.intents[0] ?? "vote");
+      return true;
+    } catch {
+      setError("The table did not answer.");
+      return false;
+    } finally {
+      setPending(false);
     }
-    setPhase("night");
-    setRound((current) => current + 1);
-    speak("Table", "Dusk. The village closes.", true);
   }
 
-  function readSignature() {
-    if (phase !== "night" || !selected || selected.id === 1 || nightRead) return;
-    setReads((current) => [
-      ...current,
-      { round, seatId: selected.id, aura: selected.aura },
-    ]);
+  function shiftPhase() {
+    const leaving = phase;
+    const day = table?.day ?? 1;
+    void postTable({ op: "advance" }).then((ok) => {
+      if (!ok) return;
+      speak("Table", leaving === "night" ? `Dawn. Day ${day} is in session.` : "Dusk. The village closes.", true);
+    });
   }
 
-  function castVote() {
-    if (phase !== "day" || !selected || selected.id === 1) return;
-    setVotes((current) => [
-      ...current.filter((entry) => entry.round !== round),
-      { round, seatId: selected.id },
-    ]);
+  function pickSeat(id: string) {
+    if (!table || locked) return;
+    const seat = table.seats.find((entry) => entry.id === id);
+    if (!seat) return;
+    const valid = intent === "vote" ? seat.validVote : seat.validAbility;
+    setPicked((current) => {
+      const existing = current.indexOf(id);
+      if (existing >= 0) return current.filter((entry) => entry !== id);
+      if (!valid || needed === 0) return current;
+      if (current.length >= needed) return current;
+      return [...current, id];
+    });
+    setError("");
   }
 
   return (
@@ -539,9 +567,9 @@ function Table({
         </div>
         <div className="phase-block">
           <strong className="display">
-            {phase === "night" ? "Night" : "Day"} {round}
+            {phase === "night" ? "Night" : "Day"} {table?.day ?? 1}
           </strong>
-          <span className="alive">16 alive</span>
+          <span className="alive">{table?.alive ?? 16} alive</span>
         </div>
         <div className="top-actions">
           <button className="text-btn" type="button" onClick={() => dealRef.current?.showModal()}>
@@ -565,69 +593,59 @@ function Table({
 
       <div className="stage">
         <ol className="roll">
-          {seats.map((seat) => (
-            <li key={seat.id}>
-              <SeatButton
-                seat={seat}
-                you={seat.id === 1}
-                pressed={selectedId === seat.id}
-                revealed={open}
-                onPick={() => setSelectedId(seat.id === selectedId ? null : seat.id)}
-              />
-            </li>
-          ))}
+          {(table?.seats ?? []).map((seat) => {
+            const order = picked.indexOf(seat.id) + 1;
+            const valid = intent === "vote" ? seat.validVote : seat.validAbility;
+            const voted = table?.you.votedName === seat.name && phase === "day";
+            return (
+              <li key={seat.id}>
+                <SeatButton
+                  seat={seat}
+                  you={seat.id === "1"}
+                  order={order}
+                  showOrder={needed > 1}
+                  voted={voted}
+                  invalid={!valid && order === 0}
+                  disabled={locked || (!valid && order === 0) || (intent === "ability" && needed === 0)}
+                  onPick={() => pickSeat(seat.id)}
+                />
+              </li>
+            );
+          })}
         </ol>
 
         <aside className="side">
           <section>
             <h2>Your role</h2>
-            {open ? (
+            {table ? (
               <>
-                <p className="role-name display">Auditor</p>
-                <p>
-                  Each night, check one player. Signed is village. Unsigned is a
-                  wolf. Blind is a solo, Phantom, or a villager who kills.
-                </p>
-                <span className="aura aura-signed">Signed</span>
+                <p className="role-name display">{table.you.roleName}</p>
+                <p>{table.you.ability}</p>
+                <span className="tag">{table.you.faction} · {table.you.category}</span>
               </>
             ) : (
-              <>
-                <button className="seal-btn" type="button" onClick={() => setOpen(true)}>
-                  Open
-                </button>
-                <p className="hint">The seal is still closed.</p>
-              </>
+              <p className="hint">Taking your seat…</p>
             )}
           </section>
 
-          <section className="action">
-            <h2>{phase === "night" ? "Night check" : "Vote"}</h2>
-            {phase === "night" ? (
-              <NightCheck
-                selected={selected}
-                read={nightRead}
-                seats={seats}
-                onRead={readSignature}
-              />
-            ) : (
-              <DayVote selected={selected} voted={votedSeat} onVote={castVote} />
-            )}
-            {reads.length > 0 ? (
-              <ul className="log">
-                {reads.map((read) => {
-                  const seat = seats.find((item) => item.id === read.seatId);
-                  return (
-                    <li key={`${read.round}-${read.seatId}`}>
-                      Night {read.round} · {seat?.name} ·{" "}
-                      <span className={`aura aura-${read.aura}`}>
-                        {AURA_LABEL[read.aura]}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </section>
+          <ActionPanel
+            table={table}
+            intent={intent}
+            picked={picked}
+            needed={needed}
+            pending={pending}
+            error={error}
+            onIntent={(next) => {
+              setIntent(next);
+              setPicked([]);
+              setError("");
+            }}
+            onClear={() => {
+              setPicked([]);
+              setError("");
+            }}
+            onConfirm={() => void postTable({ op: "act", intent, targets: picked })}
+          />
         </aside>
       </div>
 
@@ -672,7 +690,7 @@ function Table({
       <dialog className="deal" ref={dealRef}>
         <p className="kicker">Public setup</p>
         <h2 className="display">The deal</h2>
-        {DEAL.map((group) => (
+        {(table?.setup ?? []).map((group) => (
           <div className="deal-group" key={group.side}>
             <h3>{group.side}</h3>
             <ul>
@@ -697,93 +715,136 @@ function Table({
 function SeatButton({
   seat,
   you,
-  pressed,
-  revealed,
+  order,
+  showOrder,
+  voted,
+  invalid,
+  disabled,
   onPick,
 }: {
-  seat: Seat;
+  seat: TableView["seats"][number];
   you: boolean;
-  pressed: boolean;
-  revealed: boolean;
+  order: number;
+  showOrder: boolean;
+  voted: boolean;
+  invalid: boolean;
+  disabled: boolean;
   onPick: () => void;
 }) {
   return (
     <button
       type="button"
       className={you ? "seat you" : "seat"}
-      aria-pressed={pressed}
-      disabled={you}
+      data-selected={order > 0}
+      data-invalid={invalid}
+      data-vote={voted}
+      aria-pressed={order > 0}
+      disabled={disabled}
       onClick={onPick}
     >
-      <span className="num">{String(seat.id).padStart(2, "0")}</span>
+      <span className="seat-avatar">
+        {order > 0 && showOrder ? <span className="seat-order">{order}</span> : <span className="num">{seat.id.padStart(2, "0")}</span>}
+        {voted ? <span className="seat-vote">Vote</span> : null}
+      </span>
       <span className="who">
         <span className="name">{seat.name}</span>
-        {you ? <span className="tag">{revealed ? "You · Auditor" : "You"}</span> : null}
+        {you ? <span className="tag">You</span> : null}
+        {!seat.alive ? <span className="tag">Dead</span> : null}
       </span>
     </button>
   );
 }
 
-function NightCheck({
-  selected,
-  read,
-  seats,
-  onRead,
+function ActionPanel({
+  table,
+  intent,
+  picked,
+  needed,
+  pending,
+  error,
+  onIntent,
+  onClear,
+  onConfirm,
 }: {
-  selected: Seat | null;
-  read: Read | null;
-  seats: Seat[];
-  onRead: () => void;
+  table: TableView | null;
+  intent: TableIntent;
+  picked: string[];
+  needed: number;
+  pending: boolean;
+  error: string;
+  onIntent: (intent: TableIntent) => void;
+  onClear: () => void;
+  onConfirm: () => void;
 }) {
-  const readSeat = seats.find((seat) => seat.id === read?.seatId);
-
+  if (!table) return <section className="action"><p className="hint">Taking your seat…</p></section>;
+  const names = picked.map((id) => table.seats.find((seat) => seat.id === id)?.name ?? id);
+  const acted = intent === "ability" && table.you.submitted;
+  const ready = picked.length === needed && !acted;
+  const title = intent === "vote" ? "Vote" : table.you.roleName;
   return (
-    <>
+    <section className="action">
+      {table.you.intents.length > 1 ? (
+        <div className="intent-switch">
+          {table.you.intents.map((item) => (
+            <button key={item} className="text-btn" type="button" aria-pressed={intent === item} onClick={() => onIntent(item)}>
+              {item === "vote" ? "Vote" : "Ability"}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <h2>{title}</h2>
+      <p>{intent === "vote" ? "Vote for one living player." : table.you.ability}</p>
       <p>
-        {read && readSeat
-          ? `${readSeat.name} reads ${AURA_LABEL[read.aura].toLowerCase()}.`
-          : selected
-            ? `Ready to read ${selected.name}.`
-            : "Pick a seat from the roll."}
+        {needed === 0
+          ? "No target. Confirm when you are ready."
+          : names.length
+            ? names.join(", ")
+            : "Tap a player at the table."}
       </p>
-      <button
-        className="primary"
-        type="button"
-        disabled={!selected || selected.id === 1 || Boolean(read)}
-        onClick={onRead}
-      >
-        Read signature
-      </button>
-    </>
+      <ResultView result={intent === "ability" || intent === "vote" ? table.result : null} />
+      {error ? <p className="hint">{error}</p> : null}
+      <div className="action-row">
+        <button className="primary" type="button" disabled={!ready || pending} onClick={onConfirm}>
+          {intent === "vote" ? "Confirm vote" : "Confirm"}
+        </button>
+        <button className="text-btn" type="button" disabled={picked.length === 0 || pending} onClick={onClear}>
+          Clear
+        </button>
+      </div>
+    </section>
   );
 }
 
-function DayVote({
-  selected,
-  voted,
-  onVote,
-}: {
-  selected: Seat | null;
-  voted: Seat | null;
-  onVote: () => void;
-}) {
-  return (
-    <>
-      <p>
-        {voted
-          ? `Your vote is on ${voted.name}.`
-          : selected
-            ? `Ready to vote ${selected.name}.`
-            : "Pick a seat from the roll."}
+function ResultView({ result }: { result: TableResult | null }) {
+  if (!result) return null;
+  if (result.kind === "compare") {
+    return (
+      <p className="target-result">
+        <span>{result.leftName}</span>
+        <span>{result.same ? "=" : "≠"}</span>
+        <span>{result.rightName}</span>
       </p>
-      <button
-        className="primary"
-        type="button"
-        disabled={!selected || selected.id === 1}
-        onClick={onVote}
-      >
-        Cast vote
-      </button>
-    </>
-  );
+    );
+  }
+  if (result.kind === "role") {
+    return (
+      <p className="target-result">
+        <span>{result.targetName}</span>
+        <span>Analysis result</span>
+        <strong>{result.roleName}</strong>
+        <span>{result.faction} · {result.category}</span>
+      </p>
+    );
+  }
+  if (result.kind === "aura") {
+    return (
+      <p className="target-result">
+        <span>{result.targetName}</span>
+        <strong>{result.aura}</strong>
+      </p>
+    );
+  }
+  if (result.kind === "vote") return <p>Your vote is on {result.targetName}.</p>;
+  if (result.kind === "submitted") return <p>{result.text}</p>;
+  return <p>{result.text}</p>;
 }

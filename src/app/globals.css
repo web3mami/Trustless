@@ -493,12 +493,63 @@ input:focus-visible {
 .seat {
   width: 100%;
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 36px 1fr;
   gap: 10px;
-  align-items: baseline;
+  align-items: center;
   text-align: left;
   padding: 9px 8px;
   border-bottom: 1px solid rgba(231, 226, 216, 0.12);
+}
+
+.seat-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  border: 1px solid transparent;
+  background: rgba(231, 226, 216, 0.06);
+}
+
+.seat[data-selected="true"] .seat-avatar {
+  border-color: var(--brass-2);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px rgba(226, 196, 138, 0.35);
+}
+
+.seat[data-invalid="true"] {
+  opacity: 0.38;
+}
+
+.seat-order {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.seat-vote {
+  position: absolute;
+  right: -8px;
+  bottom: -6px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--brass-2);
+  color: #14120f;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.intent-switch,
+.action-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.target-result {
+  display: grid;
+  gap: 2px;
 }
 
 .room[data-phase="day"] .seat {

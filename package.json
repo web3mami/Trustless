@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/game/engine.test.ts src/lib/game/role-input.test.ts"
+    "test": "tsx --test src/lib/game/engine.test.ts src/lib/game/role-input.test.ts src/lib/game/practice.test.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
