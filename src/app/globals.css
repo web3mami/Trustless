@@ -4054,47 +4054,171 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 }
 
 .roles-page {
-  width: min(980px, calc(100% - 32px));
+  width: min(1040px, calc(100% - 20px));
   margin: 0 auto;
-  padding: 28px 0 64px;
+  padding: 52px 0 24px;
 }
 
 .roles-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .roles-head .display {
   margin: 0;
-  font-size: clamp(42px, 6vw, 64px);
+  font-size: 32px;
   line-height: 0.9;
 }
 
 .roles-head .lede {
-  max-width: 420px;
-  margin: 8px 0 0;
-}
-
-.roles-faction {
-  margin-top: 28px;
-}
-
-.roles-faction h2 {
-  margin: 0 0 12px;
-  font-family: var(--font-display), serif;
-  font-size: 28px;
-  font-weight: 400;
+  display: none;
 }
 
 .roles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.roles-card {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--faction, currentColor), transparent 35%);
+  border-radius: 8px;
+  background: color-mix(in srgb, currentColor, transparent 94%);
+  text-align: left;
+}
+
+.roles-card .roles-portrait {
+  aspect-ratio: 1 / 1;
+}
+
+.roles-card-copy {
+  display: grid;
+  gap: 2px;
+  padding: 6px 6px 7px;
+  border-top: 2px solid var(--faction, currentColor);
+}
+
+.roles-card strong {
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.roles-card-copy > span,
+.roles-card p {
+  display: none;
+  margin: 0;
+}
+
+.roles-emblem {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--faction, #5a876e);
+  border-radius: 50%;
+  background: rgba(10, 14, 18, 0.84);
+  color: #f3efe4;
+}
+
+.roles-emblem svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (min-width: 800px) {
+  .roles-page {
+    padding-top: 72px;
+  }
+
+  .roles-head {
+    margin-bottom: 18px;
+  }
+
+  .roles-head .display {
+    font-size: clamp(42px, 5vw, 60px);
+  }
+
+  .roles-head .lede {
+    display: block;
+    max-width: 420px;
+    margin: 8px 0 0;
+  }
+
+  .roles-grid {
+    gap: 14px;
+  }
+
+  .roles-card {
+    border-radius: 10px;
+  }
+
+  .roles-card .roles-portrait {
+    aspect-ratio: 4 / 5;
+  }
+
+  .roles-card-copy {
+    gap: 4px;
+    padding: 10px 12px 12px;
+    border-top-width: 3px;
+  }
+
+  .roles-card strong {
+    font-size: 16px;
+  }
+
+  .roles-card-copy > span {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.66;
+  }
+
+  .roles-card p {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.35;
+    opacity: 0.82;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .roles-emblem {
+    right: 8px;
+    bottom: 8px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .roles-portrait .roles-mark {
+    width: 42px;
+    height: 42px;
+  }
 }
 
 .roles-card {
@@ -4131,10 +4255,12 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 }
 
 .roles-portrait {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 3 / 4;
   width: 100%;
+  overflow: hidden;
   background:
     linear-gradient(180deg, transparent 70%, color-mix(in srgb, var(--faction, #5a876e), transparent 30%)),
     #101820;
@@ -4148,40 +4274,14 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   object-position: center 18%;
 }
 
-.roles-card-copy {
-  display: grid;
-  gap: 4px;
-  padding: 12px 12px 14px;
-  border-top: 3px solid var(--faction, currentColor);
-}
-
-.roles-card strong {
-  font-size: 18px;
-}
-
-.roles-card-copy > span {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0.66;
-}
-
-.roles-card p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.4;
-  opacity: 0.82;
-}
-
 .roles-mark {
   width: 22px;
   height: 22px;
 }
 
 .roles-portrait .roles-mark {
-  width: 46px;
-  height: 46px;
+  width: 28px;
+  height: 28px;
 }
 
 .roles-shade {
