@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { adminAct, adminGet } from "@/components/admin/admin-api";
 import {
   ConfirmModal,
@@ -12,16 +12,12 @@ import {
   dateTime,
 } from "@/components/admin/ui";
 import { FACTION_LABEL, type Faction } from "@/lib/roles";
-import type {
-  AdminIdentity,
-  MatchRecord,
-  Page,
-  Report,
-  Restriction,
-} from "@/lib/admin/types";
+import { REPORT_CATEGORIES, RESTRICTION_KINDS, type AdminIdentity, type MatchRecord, type Page, type Report, type Restriction } from "@/lib/admin/types";
 import {
   FEATURE_FLAGS,
   GAME_NUMBER_LIMITS,
+  GAME_TOGGLE_FIELDS,
+  MAINTENANCE_FIELDS,
   type FeatureFlags,
   type GameSettings,
   type MaintenanceSettings,
@@ -33,6 +29,7 @@ import type { AnalyticsData, RoleStatRow, FactionStat } from "@/lib/admin/types"
 import { ACHIEVEMENTS } from "@/lib/achievements";
 
 export function MatchesSection({ admin }: { admin: AdminIdentity }) {
+  const [tab, setTab] = useState<"live" | "completed" | "dev">("completed");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [list, setList] = useState<Page<MatchRecord> | null>(null);
@@ -63,8 +60,30 @@ export function MatchesSection({ admin }: { admin: AdminIdentity }) {
 
   return (
     <div className="admin-stack">
+      <div className="admin-tabs" role="tablist">
+        <button type="button" className={tab === "live" ? "is-active" : undefined} onClick={() => setTab("live")}>
+          Live matches
+        </button>
+        <button type="button" className={tab === "completed" ? "is-active" : undefined} onClick={() => setTab("completed")}>
+          Completed matches
+        </button>
+        {can(admin.permissions, "matches.edit") ? (
+          <button type="button" className={tab === "dev" ? "is-active" : undefined} onClick={() => setTab("dev")}>
+            Development tools
+          </button>
+        ) : null}
+      </div>
+      {tab === "live" ? (
+        <Panel title="Live matches">
+          <EmptyState
+            title="Match server not connected"
+            body="Phase, votes, night actions and spectate will show here. Ending a live match will require a reason and an audit entry."
+          />
+        </Panel>
+      ) : null}
+      {tab === "completed" ? (
       <Panel
-        title="Match history"
+        title="Completed matches"
         actions={
           <input
             type="search"
@@ -78,9 +97,6 @@ export function MatchesSection({ admin }: { admin: AdminIdentity }) {
           />
         }
       >
-        <p className="admin-note">
-          Live matches, timelines and spectating need the match server. Completed results from the database are below.
-        </p>
         {error ? <EmptyState title={error} /> : null}
         {!list ? <EmptyState title="Loading matches…" /> : null}
         {list && list.rows.length === 0 ? <EmptyState title="No matches found" /> : null}
@@ -129,9 +145,11 @@ export function MatchesSection({ admin }: { admin: AdminIdentity }) {
           </>
         ) : null}
       </Panel>
+      ) : null}
 
-      {can(admin.permissions, "matches.edit") ? (
+      {tab === "dev" && can(admin.permissions, "matches.edit") ? (
         <Panel title="Add test result">
+          <p className="admin-note">Development only. These rows are real match results and should not be used in production operations.</p>
           <MatchAddForm
             busy={busy}
             onSubmit={async (payload) => {
@@ -225,6 +243,7 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<null | { reportId: string; outcome: "dismissed" | "actioned" | "escalated" }>(null);
+  const [selectedId, setSelectedId] = useState("");
 
   async function reload() {
     const [reportBody, restrictionBody, settingsBody] = await Promise.all([
@@ -261,6 +280,7 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
 
   if (error) return <EmptyState title={error} />;
   if (!reports || !restrictions || !settings) return <EmptyState title="Loading moderation…" />;
+  const selected = reports.rows.find((report) => report.id === selectedId) ?? null;
 
   return (
     <div className="admin-stack">
@@ -271,9 +291,11 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
           <table className="admin-table">
             <thead>
               <tr>
+                <th>Report</th>
                 <th>When</th>
                 <th>Reported</th>
                 <th>Category</th>
+                <th>Match</th>
                 <th>Reporter</th>
                 <th />
               </tr>
@@ -281,9 +303,15 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
             <tbody>
               {reports.rows.map((report) => (
                 <tr key={report.id}>
+                  <td>
+                    <button className="admin-link" type="button" onClick={() => setSelectedId(report.id)}>
+                      {report.id}
+                    </button>
+                  </td>
                   <td>{dateTime.format(new Date(report.createdAt))}</td>
                   <td>{report.reportedName ?? report.reportedId}</td>
-                  <td>{report.category}</td>
+                  <td>{REPORT_CATEGORIES[report.category]}</td>
+                  <td>{report.matchRef ?? "—"}</td>
                   <td>{report.reporterName ?? "—"}</td>
                   <td className="admin-row-actions">
                     {can(admin.permissions, "moderation.act") ? (
@@ -307,6 +335,18 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
         )}
       </Panel>
 
+      {selected ? (
+        <Panel title={`Report ${selected.id}`}>
+          <dl className="admin-dl">
+            <div><dt>Category</dt><dd>{REPORT_CATEGORIES[selected.category]}</dd></div>
+            <div><dt>Status</dt><dd>{selected.status}</dd></div>
+            <div><dt>Match</dt><dd>{selected.matchRef ?? "Not attached"}</dd></div>
+            <div><dt>Evidence</dt><dd>Chat and match evidence are not connected yet.</dd></div>
+          </dl>
+          <p>{selected.details || "No description."}</p>
+        </Panel>
+      ) : null}
+
       <Panel title="Active restrictions">
         {restrictions.rows.length === 0 ? (
           <EmptyState title="No active restrictions" />
@@ -326,7 +366,7 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
                 <tr key={item.id}>
                   <td>{item.username ?? item.userId}</td>
                   <td>
-                    <StatusBadge status={item.kind.includes("ban") ? "banned" : "restricted"} /> {item.kind}
+                    <StatusBadge status={item.kind.includes("ban") ? "banned" : "restricted"} /> {RESTRICTION_KINDS[item.kind] ?? item.kind}
                   </td>
                   <td>{item.reason}</td>
                   <td>{item.createdBy}</td>
@@ -336,6 +376,10 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
             </tbody>
           </table>
         )}
+      </Panel>
+
+      <Panel title="Appeals">
+        <EmptyState title="No appeals" body="Appeal review is not connected yet." />
       </Panel>
 
       {can(admin.permissions, "moderation.act") ? (
@@ -355,8 +399,8 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
             const value = draft as ModerationSettings;
             return (
               <div className="admin-fields">
-                <label className="admin-span-2">
-                  Banned words (comma separated)
+                <label>
+                  Banned phrases
                   <textarea
                     rows={4}
                     value={value.bannedWords.join(", ")}
@@ -426,6 +470,7 @@ export function ModerationSection({ admin }: { admin: AdminIdentity }) {
 }
 
 export function AnalyticsSection() {
+  const [tab, setTab] = useState<"players" | "matches" | "balance" | "progression" | "moderation">("players");
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState("");
 
@@ -441,46 +486,69 @@ export function AnalyticsSection() {
 
   return (
     <div className="admin-stack">
-      <div className="admin-stat-grid">
-        <div className="admin-stat"><span>DAU</span><strong>{data.dau}</strong></div>
-        <div className="admin-stat"><span>WAU</span><strong>{data.wau}</strong></div>
-        <div className="admin-stat"><span>MAU</span><strong>{data.mau}</strong></div>
-        <div className="admin-stat"><span>Players</span><strong>{data.players}</strong></div>
-        <div className="admin-stat"><span>Achievement completion</span><strong>{data.achievementCompletion}%</strong></div>
-        <div className="admin-stat"><span>Reports</span><strong>{data.moderation.reports}</strong></div>
-        <div className="admin-stat"><span>Mutes</span><strong>{data.moderation.mutes}</strong></div>
-        <div className="admin-stat"><span>Bans</span><strong>{data.moderation.bans}</strong></div>
+      <div className="admin-tabs">
+        {(["players", "matches", "balance", "progression", "moderation"] as const).map((item) => (
+          <button key={item} type="button" className={tab === item ? "is-active" : undefined} onClick={() => setTab(item)}>
+            {item[0].toUpperCase() + item.slice(1)}
+          </button>
+        ))}
       </div>
-      <Panel title="Sign-ups, last 14 days">
-        <ol className="admin-signups">
-          {data.signups.map((day) => (
-            <li key={day.day} title={`${day.day}: ${day.count}`}>
-              <span>{day.count || ""}</span>
-              <span className="admin-bar" style={{ height: `${Math.max(4, (day.count / peak) * 100)}%` }} />
-              <span>{day.day.slice(8)}</span>
-            </li>
-          ))}
-        </ol>
-      </Panel>
-      <div className="admin-split">
-        <StatsTable title="Factions" rows={data.factions} />
-        <StatsTable title="Roles" rows={data.roles.slice(0, 12)} role />
-      </div>
-      <Panel title="Retention">
-        <table className="admin-table">
-          <thead><tr><th>Cohort</th><th>Eligible</th><th>Returned</th></tr></thead>
-          <tbody>
-            {data.retention.map((row) => (
-              <tr key={row.label}>
-                <td>{row.label}</td>
-                <td>{row.eligible}</td>
-                <td>{row.returned}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="admin-note">D1/D7/D30 session retention needs richer activity events from the match server.</p>
-      </Panel>
+      {tab === "players" ? (
+        <>
+          <div className="admin-stat-grid">
+            <div className="admin-stat"><span>DAU</span><strong>{data.dau}</strong></div>
+            <div className="admin-stat"><span>WAU</span><strong>{data.wau}</strong></div>
+            <div className="admin-stat"><span>MAU</span><strong>{data.mau}</strong></div>
+            <div className="admin-stat"><span>Players</span><strong>{data.players}</strong></div>
+          </div>
+          <Panel title="Sign-ups, last 14 days">
+            <ol className="admin-signups">
+              {data.signups.map((day) => (
+                <li key={day.day} title={`${day.day}: ${day.count}`}>
+                  <span>{day.count || ""}</span>
+                  <span className="admin-bar" style={{ height: `${Math.max(4, (day.count / peak) * 100)}%` }} />
+                  <span>{day.day.slice(8)}</span>
+                </li>
+              ))}
+            </ol>
+          </Panel>
+          <Panel title="Retention">
+            <table className="admin-table">
+              <thead><tr><th>Cohort</th><th>Eligible</th><th>Returned</th></tr></thead>
+              <tbody>
+                {data.retention.map((row) => (
+                  <tr key={row.label}>
+                    <td>{row.label}</td>
+                    <td>{row.eligible}</td>
+                    <td>{row.returned}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Panel>
+        </>
+      ) : null}
+      {tab === "matches" ? (
+        <EmptyState title="Match telemetry not connected" body="Started games, duration, queue time and disconnect rate need the match server." />
+      ) : null}
+      {tab === "balance" ? (
+        <div className="admin-split">
+          <StatsTable title="Factions" rows={data.factions} />
+          <StatsTable title="Roles" rows={data.roles.slice(0, 12)} role />
+        </div>
+      ) : null}
+      {tab === "progression" ? (
+        <div className="admin-stat-grid">
+          <div className="admin-stat"><span>Achievement completion</span><strong>{data.achievementCompletion}%</strong></div>
+        </div>
+      ) : null}
+      {tab === "moderation" ? (
+        <div className="admin-stat-grid">
+          <div className="admin-stat"><span>Reports</span><strong>{data.moderation.reports}</strong></div>
+          <div className="admin-stat"><span>Mutes</span><strong>{data.moderation.mutes}</strong></div>
+          <div className="admin-stat"><span>Bans</span><strong>{data.moderation.bans}</strong></div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -521,6 +589,7 @@ function StatsTable({
 }
 
 export function RolesFactionsSection({ mode }: { mode: "roles" | "factions" }) {
+  const [tab, setTab] = useState<"performance" | "definitions">("performance");
   const [factions, setFactions] = useState<FactionStat[]>([]);
   const [roles, setRoles] = useState<RoleStatRow[]>([]);
   const [error, setError] = useState("");
@@ -535,15 +604,70 @@ export function RolesFactionsSection({ mode }: { mode: "roles" | "factions" }) {
   }, [mode]);
 
   if (error) return <EmptyState title={error} />;
-  if (!factions.length && !roles.length) return <EmptyState title="Loading…" />;
 
   return (
     <div className="admin-stack">
-      <p className="admin-note">
-        Performance is derived from completed match history. Creating and editing role/faction definitions needs the content store.
-      </p>
-      {mode === "factions" ? <StatsTable title="Faction performance" rows={factions} /> : <StatsTable title="Role performance" rows={roles} role />}
+      <div className="admin-tabs">
+        <button type="button" className={tab === "definitions" ? "is-active" : undefined} onClick={() => setTab("definitions")}>
+          {mode === "roles" ? "Role definitions" : "Faction definitions"}
+        </button>
+        <button type="button" className={tab === "performance" ? "is-active" : undefined} onClick={() => setTab("performance")}>
+          Performance
+        </button>
+      </div>
+      {tab === "definitions" ? (
+        mode === "roles" ? <RoleDefinitions /> : <FactionDefinitions />
+      ) : !factions.length && !roles.length ? (
+        <EmptyState title="No completed results yet" />
+      ) : mode === "factions" ? (
+        <StatsTable title="Faction performance" rows={factions} />
+      ) : (
+        <StatsTable title="Role performance" rows={roles} role />
+      )}
     </div>
+  );
+}
+
+function FactionDefinitions() {
+  const factions = [
+    { name: "Village", note: "Good-aligned. Wins by eliminating every hostile threat." },
+    { name: "Werewolf", note: "Team-aligned. Shares night chat and wins by reaching parity with the village." },
+    { name: "Solo", note: "Independent. Can be a killer, a converter, or both. Does not share a team win." },
+    { name: "Neutral", note: "Independent wildcard. Not inherently convertible. Some Neutral roles stay independent; a Fool-style role wins if the village lynches them." },
+  ];
+  return (
+    <Panel title="Faction definitions">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Faction</th>
+            <th>Win logic</th>
+            <th>Editor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {factions.map((faction) => (
+            <tr key={faction.name}>
+              <td>{faction.name}</td>
+              <td>{faction.note}</td>
+              <td><StatusBadge status="planned" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="admin-note">Editing names, icons and colours needs the content store. Performance above uses completed matches.</p>
+    </Panel>
+  );
+}
+
+function RoleDefinitions() {
+  return (
+    <Panel title="Role definitions">
+      <EmptyState
+        title="Role editor is not connected"
+        body="Create, duplicate, enable and archive will write to the content store. Performance uses completed matches today."
+      />
+    </Panel>
   );
 }
 
@@ -629,6 +753,21 @@ export function SettingsSection({
       busy={busy}
       needPassword={kind === "maintenance"}
       needCode={kind === "maintenance" && admin.totpEnabled}
+      describe={
+        kind === "maintenance"
+          ? (draft) => {
+              const next = draft as MaintenanceSettings;
+              const current = value as MaintenanceSettings;
+              if (next.forceUpdate && !current.forceUpdate) {
+                return "Enable force client update? Older clients will be locked out until they update. This writes an audit entry.";
+              }
+              if (next.enabled && !current.enabled) {
+                return "Enable maintenance mode? New matches will be blocked. Active matches will continue if allowed.";
+              }
+              return "Saving maintenance changes asks for your password and writes an audit entry.";
+            }
+          : undefined
+      }
       onSave={async (next, reason, auth) => {
         setBusy(true);
         try {
@@ -641,20 +780,25 @@ export function SettingsSection({
       render={(draft, setDraft) => {
         if (kind === "maintenance") {
           const settings = draft as MaintenanceSettings;
+          const turningOn = settings.enabled && !(value as MaintenanceSettings).enabled;
+          const forcing = settings.forceUpdate && !(value as MaintenanceSettings).forceUpdate;
           return (
             <div className="admin-fields">
-              {(["enabled", "blockNewMatches", "allowActiveToFinish", "forceUpdate"] as const).map((field) => (
-                <label key={field} className="admin-check">
+              {MAINTENANCE_FIELDS.map((field) => (
+                <label key={field.key} className="admin-check admin-span-2">
                   <input
                     type="checkbox"
-                    checked={settings[field]}
-                    onChange={(event) => setDraft({ ...settings, [field]: event.target.checked })}
+                    checked={settings[field.key]}
+                    onChange={(event) => setDraft({ ...settings, [field.key]: event.target.checked })}
                   />
-                  {field}
+                  <span>
+                    <strong>{field.label}</strong>
+                    <em className="admin-help">{field.help}</em>
+                  </span>
                 </label>
               ))}
               <label className="admin-span-2">
-                Message
+                Maintenance message
                 <textarea
                   rows={3}
                   value={settings.message}
@@ -665,6 +809,7 @@ export function SettingsSection({
                 Estimated return
                 <input
                   value={settings.estimatedReturn}
+                  placeholder="Tonight at 22:00 UTC"
                   onChange={(event) => setDraft({ ...settings, estimatedReturn: event.target.value })}
                 />
               </label>
@@ -672,9 +817,17 @@ export function SettingsSection({
                 Minimum version
                 <input
                   value={settings.minimumVersion}
+                  placeholder="1.2.0"
                   onChange={(event) => setDraft({ ...settings, minimumVersion: event.target.value })}
                 />
               </label>
+              <p className="admin-note admin-span-2">
+                {forcing
+                  ? "Force client update will lock out older clients. Saving asks for your password."
+                  : turningOn
+                    ? "Enabling maintenance blocks new matches. Active matches finish only if that option stays on."
+                    : "Saving maintenance changes asks for your password and writes an audit entry."}
+              </p>
             </div>
           );
         }
@@ -699,16 +852,18 @@ export function SettingsSection({
                   >
                     <option value="off">Off</option>
                     <option value="admin">Admin only</option>
-                    <option value="test">Test users</option>
+                    <option value="test">Testers</option>
                     <option value="percentage">Percentage</option>
-                    <option value="full">Full rollout</option>
+                    <option value="full">Everyone</option>
                   </select>
                   <input
                     type="number"
                     min={0}
                     max={100}
                     value={flags[key].percentage}
+                    hidden={flags[key].state !== "percentage"}
                     disabled={flags[key].state !== "percentage"}
+                    aria-label={`${FEATURE_FLAGS[key]} percentage`}
                     onChange={(event) =>
                       setDraft({
                         ...flags,
@@ -716,62 +871,112 @@ export function SettingsSection({
                       })
                     }
                   />
+                  <span className="admin-subtle">
+                    {flags[key].state === "full"
+                      ? "Everyone"
+                      : flags[key].state === "off"
+                        ? "Off"
+                        : flags[key].state === "admin"
+                          ? "Admins only"
+                          : flags[key].state === "test"
+                            ? "Testers"
+                            : `${flags[key].percentage}% of players`}
+                  </span>
                 </div>
               ))}
             </div>
           );
         }
         const game = draft as GameSettings;
+        const groups: { title: string; fields: (keyof typeof GAME_NUMBER_LIMITS)[] }[] = [
+          { title: "Phase timers", fields: ["dayDuration", "nightDuration", "discussionDuration", "votingDuration", "deathAnimationDuration"] },
+          { title: "Player limits", fields: ["minPlayers", "maxPlayers"] },
+          { title: "Disconnects", fields: ["afkTimeout", "disconnectGrace"] },
+        ];
         return (
-          <div className="admin-fields">
-            {(Object.keys(GAME_NUMBER_LIMITS) as (keyof typeof GAME_NUMBER_LIMITS)[]).map((field) => (
-              <label key={field}>
-                {GAME_NUMBER_LIMITS[field].label}
-                <input
-                  type="number"
-                  min={GAME_NUMBER_LIMITS[field].min}
-                  max={GAME_NUMBER_LIMITS[field].max}
-                  value={game[field]}
-                  onChange={(event) => setDraft({ ...game, [field]: Number(event.target.value) })}
-                />
-              </label>
+          <div className="admin-stack">
+            {groups.map((group) => (
+              <div key={group.title}>
+                <h3>{group.title}</h3>
+                <div className="admin-fields">
+                  {group.fields.map((field) => (
+                    <label key={field}>
+                      {GAME_NUMBER_LIMITS[field].label}
+                      <input
+                        type="number"
+                        min={GAME_NUMBER_LIMITS[field].min}
+                        max={GAME_NUMBER_LIMITS[field].max}
+                        value={game[field]}
+                        onChange={(event) => setDraft({ ...game, [field]: Number(event.target.value) })}
+                      />
+                      <em className="admin-help">{game[field]} {GAME_NUMBER_LIMITS[field].unit === "s" ? "seconds" : ""}</em>
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
-            <label>
-              Tie vote
-              <select
-                value={game.tieVote}
-                onChange={(event) =>
-                  setDraft({ ...game, tieVote: event.target.value as GameSettings["tieVote"] })
-                }
-              >
-                <option value="no_lynch">No lynch</option>
-                <option value="revote">Revote</option>
-                <option value="random">Random</option>
-              </select>
-            </label>
-            <label>
-              Spectators
-              <select
-                value={game.spectators}
-                onChange={(event) =>
-                  setDraft({ ...game, spectators: event.target.value as GameSettings["spectators"] })
-                }
-              >
-                <option value="off">Off</option>
-                <option value="friends">Friends</option>
-                <option value="anyone">Anyone</option>
-              </select>
-            </label>
-            {(["allowSkipVote", "revealRoleOnDeath", "deadChat"] as const).map((field) => (
-              <label key={field} className="admin-check">
-                <input
-                  type="checkbox"
-                  checked={game[field]}
-                  onChange={(event) => setDraft({ ...game, [field]: event.target.checked })}
-                />
-                {field}
-              </label>
-            ))}
+            <div>
+              <h3>Voting</h3>
+              <div className="admin-fields">
+                <label>
+                  Tie vote behavior
+                  <select
+                    value={game.tieVote}
+                    onChange={(event) =>
+                      setDraft({ ...game, tieVote: event.target.value as GameSettings["tieVote"] })
+                    }
+                  >
+                    <option value="no_lynch">No lynch</option>
+                    <option value="revote">Revote</option>
+                    <option value="random">Random player</option>
+                  </select>
+                </label>
+                {GAME_TOGGLE_FIELDS.filter((field) => field.key === "allowSkipVote").map((field) => (
+                  <label key={field.key} className="admin-check">
+                    <input
+                      type="checkbox"
+                      checked={game[field.key]}
+                      onChange={(event) => setDraft({ ...game, [field.key]: event.target.checked })}
+                    />
+                    <span>
+                      <strong>{field.label}</strong>
+                      <em className="admin-help">{field.help}</em>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3>Death and spectating</h3>
+              <div className="admin-fields">
+                <label>
+                  Spectator mode
+                  <select
+                    value={game.spectators}
+                    onChange={(event) =>
+                      setDraft({ ...game, spectators: event.target.value as GameSettings["spectators"] })
+                    }
+                  >
+                    <option value="off">Off</option>
+                    <option value="friends">Friends only</option>
+                    <option value="anyone">Anyone</option>
+                  </select>
+                </label>
+                {GAME_TOGGLE_FIELDS.filter((field) => field.key !== "allowSkipVote").map((field) => (
+                  <label key={field.key} className="admin-check admin-span-2">
+                    <input
+                      type="checkbox"
+                      checked={game[field.key]}
+                      onChange={(event) => setDraft({ ...game, [field.key]: event.target.checked })}
+                    />
+                    <span>
+                      <strong>{field.label}</strong>
+                      <em className="admin-help">{field.help}</em>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         );
       }}
@@ -787,6 +992,7 @@ function SettingsEditor<T>({
   render,
   needPassword,
   needCode,
+  describe,
 }: {
   title: string;
   value: T;
@@ -795,20 +1001,26 @@ function SettingsEditor<T>({
   render: (draft: T, setDraft: (next: T) => void) => React.ReactNode;
   needPassword?: boolean;
   needCode?: boolean;
+  describe?: (draft: T) => string;
 }) {
   const [draft, setDraft] = useState(value);
   const [modal, setModal] = useState(false);
+  const [saved, setSaved] = useState("");
 
   return (
     <Panel title={title}>
-      {render(draft, setDraft)}
+      {render(draft, (next) => {
+        setSaved("");
+        setDraft(next);
+      })}
+      {saved ? <p className="admin-message">{saved}</p> : null}
       <button className="admin-primary" type="button" disabled={busy} onClick={() => setModal(true)}>
         Save changes
       </button>
       {modal ? (
         <ConfirmModal
           title={`Save ${title.toLowerCase()}`}
-          body="This change is audit logged and applies immediately."
+          body={describe?.(draft) ?? "This change is audit logged and applies immediately."}
           confirmLabel="Save"
           busy={busy}
           needPassword={needPassword}
@@ -816,7 +1028,7 @@ function SettingsEditor<T>({
           onClose={() => setModal(false)}
           onConfirm={async ({ reason, password, code }) => {
             await onSave(draft, reason, { password, code });
-            setDraft(draft);
+            setSaved("Saved.");
             setModal(false);
           }}
         />
@@ -827,15 +1039,22 @@ function SettingsEditor<T>({
 
 export function AuditSection({ admin }: { admin: AdminIdentity }) {
   const [query, setQuery] = useState("");
+  const [action, setAction] = useState("");
+  const [adminName, setAdminName] = useState("");
+  const [targetType, setTargetType] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
+  const [openId, setOpenId] = useState("");
   const [list, setList] = useState<Page<import("@/lib/admin/types").AuditEntry> | null>(null);
   const [error, setError] = useState("");
+  const filters = { q: query, action, admin: adminName, targetType, from, to, page: String(page) };
 
   useEffect(() => {
-    adminGet("audit", { q: query, page: String(page) })
+    adminGet("audit", { q: query, action, admin: adminName, targetType, from, to, page: String(page) })
       .then((body) => setList(body.audit as Page<import("@/lib/admin/types").AuditEntry>))
       .catch((err: Error) => setError(err.message));
-  }, [query, page]);
+  }, [query, action, adminName, targetType, from, to, page]);
 
   return (
     <Panel
@@ -845,18 +1064,48 @@ export function AuditSection({ admin }: { admin: AdminIdentity }) {
           <input
             type="search"
             value={query}
-            placeholder="Action, admin, target"
+            placeholder="Search"
+            aria-label="Search audit log"
             onChange={(event) => {
               setPage(1);
               setQuery(event.target.value);
             }}
           />
+          <input
+            value={adminName}
+            placeholder="Admin"
+            aria-label="Filter by admin"
+            onChange={(event) => {
+              setPage(1);
+              setAdminName(event.target.value);
+            }}
+          />
+          <input
+            value={action}
+            placeholder="Action"
+            aria-label="Filter by action"
+            onChange={(event) => {
+              setPage(1);
+              setAction(event.target.value);
+            }}
+          />
+          <input
+            value={targetType}
+            placeholder="Target type"
+            aria-label="Filter by target type"
+            onChange={(event) => {
+              setPage(1);
+              setTargetType(event.target.value);
+            }}
+          />
+          <input type="date" value={from} aria-label="From" onChange={(event) => { setPage(1); setFrom(event.target.value); }} />
+          <input type="date" value={to} aria-label="To" onChange={(event) => { setPage(1); setTo(event.target.value); }} />
           {can(admin.permissions, "audit.export") ? (
             <button
               className="admin-secondary"
               type="button"
               onClick={async () => {
-                const body = await adminGet("audit-export", { q: query });
+                const body = await adminGet("audit-export", filters);
                 const blob = new Blob([JSON.stringify(body.export, null, 2)], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
@@ -886,25 +1135,47 @@ export function AuditSection({ admin }: { admin: AdminIdentity }) {
                   <th>Action</th>
                   <th>Target</th>
                   <th>Reason</th>
+                  <th>Session</th>
+                  <th />
                 </tr>
               </thead>
               <tbody>
                 {list.rows.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>{dateTime.format(new Date(entry.createdAt))}</td>
-                    <td>{entry.adminName}</td>
-                    <td>{entry.action}</td>
-                    <td>
-                      {entry.targetType}
-                      {entry.targetId ? ` · ${entry.targetId}` : ""}
-                    </td>
-                    <td>{entry.reason ?? "—"}</td>
-                  </tr>
+                  <Fragment key={entry.id}>
+                    <tr>
+                      <td>{dateTime.format(new Date(entry.createdAt))}</td>
+                      <td>{entry.adminName}</td>
+                      <td>{entry.action}</td>
+                      <td>
+                        {entry.targetType ?? "—"}
+                        {entry.targetId ? ` · ${entry.targetId}` : ""}
+                      </td>
+                      <td>{entry.reason ?? "—"}</td>
+                      <td>{entry.ip ?? "—"}</td>
+                      <td>
+                        <button className="admin-link" type="button" onClick={() => setOpenId(openId === entry.id ? "" : entry.id)}>
+                          {openId === entry.id ? "Hide" : "Values"}
+                        </button>
+                      </td>
+                    </tr>
+                    {openId === entry.id ? (
+                      <tr key={`${entry.id}-values`}>
+                        <td colSpan={7}>
+                          <strong>Previous</strong>
+                          <pre className="admin-code">{JSON.stringify(entry.previousValue ?? null, null, 2)}</pre>
+                          <strong>New</strong>
+                          <pre className="admin-code">{JSON.stringify(entry.newValue ?? null, null, 2)}</pre>
+                          <span className="admin-subtle">Session {entry.sessionRef ?? "—"}</span>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
           </div>
           <Pagination page={list} onChange={setPage} />
+          <p className="admin-note">Audit entries are append-only. This screen cannot edit or delete them.</p>
         </>
       ) : null}
     </Panel>
@@ -914,9 +1185,18 @@ export function AuditSection({ admin }: { admin: AdminIdentity }) {
 export function AdminsSection({ admin }: { admin: AdminIdentity }) {
   const [admins, setAdmins] = useState<import("@/lib/admin/types").AdminAccount[] | null>(null);
   const [roles, setRoles] = useState<Record<string, string>>({});
+  const [rolePermissions, setRolePermissions] = useState<Record<string, string[]>>({});
+  const [inspectId, setInspectId] = useState<number | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [modal, setModal] = useState<null | { action: string; payload: Record<string, unknown>; title: string; body: string }>(null);
+  const [modal, setModal] = useState<null | {
+    action: string;
+    payload: Record<string, unknown>;
+    title: string;
+    body: string;
+    extra?: boolean;
+  }>(null);
 
   useEffect(() => {
     let active = true;
@@ -925,6 +1205,7 @@ export function AdminsSection({ admin }: { admin: AdminIdentity }) {
         if (!active) return;
         setAdmins(body.admins as import("@/lib/admin/types").AdminAccount[]);
         setRoles((body.roles as Record<string, string>) ?? {});
+        setRolePermissions((body.rolePermissions as Record<string, string[]>) ?? {});
         setError("");
       })
       .catch((err: Error) => {
@@ -939,6 +1220,7 @@ export function AdminsSection({ admin }: { admin: AdminIdentity }) {
     const body = await adminGet("admins");
     setAdmins(body.admins as import("@/lib/admin/types").AdminAccount[]);
     setRoles((body.roles as Record<string, string>) ?? {});
+    setRolePermissions((body.rolePermissions as Record<string, string[]>) ?? {});
   }
 
   if (error) return <EmptyState title={error} />;
@@ -956,23 +1238,121 @@ export function AdminsSection({ admin }: { admin: AdminIdentity }) {
               <th>Sessions</th>
               <th>Last login</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {admins.map((account) => (
               <tr key={account.id}>
                 <td>{account.username}</td>
-                <td>{roles[account.role] ?? account.role}</td>
+                <td>
+                  {can(admin.permissions, "admins.manage") && account.id !== admin.id ? (
+                    <select
+                      aria-label={`Role for ${account.username}`}
+                      value={account.role}
+                      onChange={(event) =>
+                        setModal({
+                          title: `Change ${account.username} to ${roles[event.target.value] ?? event.target.value}`,
+                          body: "Their sessions will be revoked so the new role takes effect.",
+                          action: "admin.update_role",
+                          payload: { adminId: account.id, role: event.target.value },
+                        })
+                      }
+                    >
+                      {Object.entries(roles).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    roles[account.role] ?? account.role
+                  )}
+                </td>
                 <td>{account.totpEnabled ? "On" : "Off"}</td>
                 <td>{account.activeSessions}</td>
                 <td>{account.lastLoginAt ? dateTime.format(new Date(account.lastLoginAt)) : "—"}</td>
                 <td>
                   <StatusBadge status={account.disabled ? "banned" : "active"} />
                 </td>
+                <td className="admin-row-actions">
+                  {can(admin.permissions, "admins.manage") && account.id !== admin.id ? (
+                    <>
+                      <button
+                        className="admin-link"
+                        type="button"
+                        onClick={() =>
+                          setModal({
+                            title: account.disabled ? `Enable ${account.username}` : `Disable ${account.username}`,
+                            body: account.disabled
+                              ? "This restores the admin account."
+                              : "This signs them out and blocks new admin sessions.",
+                            action: "admin.set_disabled",
+                            payload: { adminId: account.id, disabled: !account.disabled },
+                          })
+                        }
+                      >
+                        {account.disabled ? "Enable" : "Disable"}
+                      </button>
+                      <button
+                        className="admin-link"
+                        type="button"
+                        onClick={() =>
+                          setModal({
+                            title: `Revoke sessions for ${account.username}`,
+                            body: "They will need to sign in again.",
+                            action: "admin.revoke_sessions",
+                            payload: { adminId: account.id },
+                          })
+                        }
+                      >
+                        Revoke sessions
+                      </button>
+                      <button
+                        className="admin-link"
+                        type="button"
+                        onClick={() => {
+                          setNewPassword("");
+                          setModal({
+                            title: `Reset password for ${account.username}`,
+                            body: "They will be signed out. The new password must be at least 12 characters.",
+                            action: "admin.reset_password",
+                            extra: true,
+                            payload: { adminId: account.id },
+                          });
+                        }}
+                      >
+                        Reset password
+                      </button>
+                      <button
+                        className="admin-link"
+                        type="button"
+                        onClick={() =>
+                          setModal({
+                            title: `Reset 2FA for ${account.username}`,
+                            body: "This turns 2FA off until they enroll again.",
+                            action: "admin.reset_2fa",
+                            payload: { adminId: account.id },
+                          })
+                        }
+                      >
+                        Reset 2FA
+                      </button>
+                    </>
+                  ) : null}
+                  <button className="admin-link" type="button" onClick={() => setInspectId(inspectId === account.id ? null : account.id)}>
+                    Permissions
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        {inspectId !== null ? (
+          <p className="admin-note">
+            {(rolePermissions[admins.find((item) => item.id === inspectId)?.role ?? ""] ?? []).join(" · ") || "No permissions listed."}
+          </p>
+        ) : null}
       </Panel>
 
       {can(admin.permissions, "admins.manage") ? (
@@ -1026,12 +1406,21 @@ export function AdminsSection({ admin }: { admin: AdminIdentity }) {
           confirmLabel="Confirm"
           needPassword
           needCode={admin.totpEnabled}
+          extraLabel={modal.extra ? "Temporary password" : undefined}
+          extraValue={newPassword}
+          onExtraChange={setNewPassword}
           busy={busy}
           onClose={() => setModal(null)}
           onConfirm={async ({ reason, password, code }) => {
             setBusy(true);
             try {
-              await adminAct(modal.action, { ...modal.payload, reason, password, code });
+              await adminAct(modal.action, {
+                ...modal.payload,
+                ...(modal.extra ? { newPassword } : {}),
+                reason,
+                password,
+                code,
+              });
               setModal(null);
               await reload();
             } finally {

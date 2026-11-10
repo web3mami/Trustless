@@ -3855,9 +3855,45 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   margin-bottom: 12px;
 }
 
+.admin-help {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.65;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-tabs button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(24, 44, 66, 0.18);
+  border-radius: 999px;
+  background: #f3e9d4;
+  color: #182c42;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-tabs button.is-active {
+  border-color: #c3943c;
+  background: #14263a;
+  color: #fbf4e4;
+}
+
 .admin-flag-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 80px;
+  grid-template-columns: minmax(0, 1.2fr) 140px 72px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
 }

@@ -21,6 +21,14 @@ import {
   SettingsSection,
   SupportSection,
 } from "@/components/admin/sections/ops";
+import {
+  AntiCheatSection,
+  ChatSection,
+  GameModesSection,
+  MatchmakingSection,
+  RankedSection,
+  SocialSection,
+} from "@/components/admin/sections/tools";
 import { EmptyState, SectionPlaceholder, StatusBadge } from "@/components/admin/ui";
 import { ADMIN_NAV, findSection } from "@/lib/admin/navigation";
 import { ADMIN_ROLES, can } from "@/lib/admin/permissions";
@@ -231,6 +239,7 @@ function Shell({
               admin={admin}
               sectionId={section.id}
               playerFocus={playerFocus}
+              onOpen={(section) => setSectionId(section)}
               onOpenPlayer={(userId) => {
                 setPlayerFocus(userId);
                 setSectionId("players");
@@ -247,11 +256,13 @@ function SectionBody({
   admin,
   sectionId,
   playerFocus,
+  onOpen,
   onOpenPlayer,
 }: {
   admin: AdminIdentity;
   sectionId: string;
   playerFocus: string;
+  onOpen: (sectionId: string) => void;
   onOpenPlayer: (userId: string) => void;
 }) {
   const section = findSection(sectionId);
@@ -259,7 +270,7 @@ function SectionBody({
 
   switch (sectionId) {
     case "overview":
-      return <OverviewSection />;
+      return <OverviewSection onOpen={onOpen} />;
     case "players":
       return <PlayersSection admin={admin} initialUserId={playerFocus} />;
     case "matches":
@@ -286,6 +297,18 @@ function SectionBody({
       return <AuditSection admin={admin} />;
     case "support":
       return <SupportSection onOpenPlayer={onOpenPlayer} />;
+    case "chat":
+      return <ChatSection />;
+    case "social":
+      return <SocialSection />;
+    case "anti-cheat":
+      return <AntiCheatSection />;
+    case "matchmaking":
+      return <MatchmakingSection />;
+    case "ranked":
+      return <RankedSection />;
+    case "game-modes":
+      return <GameModesSection />;
     default:
       return (
         <SectionPlaceholder

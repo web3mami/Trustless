@@ -75,6 +75,7 @@ export function PlayersSection({
               <option value="restricted">Restricted</option>
               <option value="suspended">Suspended</option>
               <option value="banned">Banned</option>
+              <option value="monitored">Monitored</option>
             </select>
           </div>
         }
@@ -234,8 +235,10 @@ function PlayerDetailPanel({
           <dl className="admin-dl">
             <div><dt>Joined</dt><dd>{dateTime.format(new Date(player.joinedAt))}</dd></div>
             <div><dt>Last active</dt><dd>{player.lastActiveAt ? dateTime.format(new Date(player.lastActiveAt)) : "—"}</dd></div>
-            <div><dt>Wallet</dt><dd>{player.walletAddress ?? "—"}</dd></div>
-            <div><dt>Gender</dt><dd>{player.gender}</dd></div>
+            <div><dt>Auth</dt><dd>Privy</dd></div>
+            <div><dt>Embedded wallet</dt><dd>{player.walletAddress ?? "Not connected"}</dd></div>
+            <div><dt>External wallet</dt><dd>Not connected</dd></div>
+            <div><dt>Monitored</dt><dd>{player.monitored ? "Yes" : "No"}</dd></div>
           </dl>
           {player.previousUsernames.length > 0 ? (
             <ul className="admin-feed">
@@ -291,6 +294,26 @@ function PlayerDetailPanel({
             <label>Rank<input name="rank" defaultValue={player.rank} required /></label>
           </div>
           <button className="admin-primary" type="submit" disabled={busy}>Save profile</button>
+          {can(admin.permissions, "players.edit") ? (
+            <div className="admin-danger-actions">
+              <button
+                className="admin-secondary"
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  setModal({
+                    title: "Reset username",
+                    body: `Replace ${player.username} with a generated Player ID name. The old name is kept in history.`,
+                    confirmLabel: "Reset username",
+                    action: "player.reset_username",
+                    payload: {},
+                  })
+                }
+              >
+                Reset username
+              </button>
+            </div>
+          ) : null}
         </form>
       ) : null}
 
@@ -380,6 +403,78 @@ function PlayerDetailPanel({
 
       <div className="admin-block">
         <h3>Moderation</h3>
+        <dl className="admin-dl">
+          <div><dt>Reports received</dt><dd>{player.reportsReceived.length}</dd></div>
+          <div><dt>Reports submitted</dt><dd>{player.reportsSubmitted}</dd></div>
+          <div><dt>Warnings</dt><dd>{player.restrictions.filter((item) => item.kind === "warning" && item.active).length}</dd></div>
+          <div><dt>Mutes</dt><dd>{player.restrictions.filter((item) => item.kind === "mute" && item.active).length}</dd></div>
+          <div><dt>Suspensions</dt><dd>{player.restrictions.filter((item) => item.kind === "suspension" && item.active).length}</dd></div>
+          <div><dt>Bans</dt><dd>{player.restrictions.filter((item) => (item.kind === "temp_ban" || item.kind === "perm_ban") && item.active).length}</dd></div>
+        </dl>
+        <p className="admin-note">Cosmetics, inventory and force logout need services that are not connected yet.</p>
+        {can(admin.permissions, "players.moderate") ? (
+          <div className="admin-danger-actions">
+            {(
+              [
+                ["warning", "Warn"],
+                ["mute", "Mute"],
+                ["suspension", "Suspend 24h"],
+                ["temp_ban", "Ban 24h"],
+                ["perm_ban", "Permanent ban"],
+                ["monitor", player.monitored ? "Refresh monitor" : "Flag for monitoring"],
+              ] as const
+            ).map(([kind, label]) => (
+              <button
+                key={kind}
+                className={kind === "perm_ban" ? "admin-danger" : "admin-secondary"}
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  setModal({
+                    title: label,
+                    body:
+                      kind === "perm_ban"
+                        ? `Permanently ban ${player.username}. This requires your password.`
+                        : `Apply ${label.toLowerCase()} to ${player.username}.`,
+                    confirmLabel: label,
+                    dangerous: kind === "suspension" || kind === "temp_ban" || kind === "perm_ban",
+                    confirmWord: kind === "perm_ban" ? "BAN" : undefined,
+                    needPassword: kind === "perm_ban",
+                    needCode: kind === "perm_ban" && admin.totpEnabled,
+                    action: "player.restrict",
+                    payload: {
+                      kind,
+                      ...(kind === "suspension" || kind === "temp_ban" ? { durationHours: 24 } : {}),
+                    },
+                  })
+                }
+              >
+                {label}
+              </button>
+            ))}
+            {player.restrictions
+              .filter((item) => item.active && (item.kind === "mute" || item.kind === "suspension" || item.kind === "monitor" || item.kind.includes("ban")))
+              .map((item) => (
+                <button
+                  key={item.id}
+                  className="admin-secondary"
+                  type="button"
+                  disabled={busy}
+                  onClick={() =>
+                    setModal({
+                      title: item.kind === "mute" ? "Unmute" : item.kind === "monitor" ? "Unflag monitoring" : item.kind.includes("ban") ? "Remove ban" : "Unsuspend",
+                      body: `Lift ${RESTRICTION_KINDS[item.kind]} for ${player.username}.`,
+                      confirmLabel: "Lift",
+                      action: "player.lift_restriction",
+                      payload: { restrictionId: String(item.id) },
+                    })
+                  }
+                >
+                  {item.kind === "mute" ? "Unmute" : item.kind === "monitor" ? "Unflag" : item.kind.includes("ban") ? "Remove ban" : "Unsuspend"}
+                </button>
+              ))}
+          </div>
+        ) : null}
         <RestrictionForm
           disabled={busy || !can(admin.permissions, "players.moderate")}
           onSubmit={(payload) =>
@@ -415,7 +510,7 @@ function PlayerDetailPanel({
                       body: `Lift ${RESTRICTION_KINDS[item.kind]} for ${player.username}.`,
                       confirmLabel: "Lift",
                       action: "player.lift_restriction",
-                      payload: { restrictionId: Number(item.id) },
+                      payload: { restrictionId: String(item.id) },
                     })
                   }
                 >

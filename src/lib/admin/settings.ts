@@ -103,6 +103,27 @@ export const DEFAULT_SETTINGS: SettingsMap = {
   },
 };
 
+export const MAINTENANCE_FIELDS: {
+  key: keyof Pick<MaintenanceSettings, "enabled" | "blockNewMatches" | "allowActiveToFinish" | "forceUpdate">;
+  label: string;
+  help: string;
+}[] = [
+  { key: "enabled", label: "Maintenance enabled", help: "Players see the maintenance message instead of starting new play." },
+  { key: "blockNewMatches", label: "Block new matches", help: "No new matches can start while this is on." },
+  { key: "allowActiveToFinish", label: "Allow active matches to finish", help: "Matches already in progress can play out." },
+  { key: "forceUpdate", label: "Force client update", help: "Players below the minimum version must update before they can play." },
+];
+
+export const GAME_TOGGLE_FIELDS: {
+  key: "allowSkipVote" | "revealRoleOnDeath" | "deadChat";
+  label: string;
+  help: string;
+}[] = [
+  { key: "allowSkipVote", label: "Allow skip vote", help: "Players can vote to skip the lynch." },
+  { key: "revealRoleOnDeath", label: "Reveal role on death", help: "The village sees a player's role when they die." },
+  { key: "deadChat", label: "Dead-player chat", help: "Eliminated players can talk to each other." },
+];
+
 export const GAME_NUMBER_LIMITS: Record<
   Exclude<keyof GameSettings, "tieVote" | "allowSkipVote" | "revealRoleOnDeath" | "spectators" | "deadChat">,
   { label: string; min: number; max: number; unit: string }

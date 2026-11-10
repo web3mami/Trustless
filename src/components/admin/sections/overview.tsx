@@ -5,7 +5,22 @@ import { adminGet } from "@/components/admin/admin-api";
 import { dateTime, EmptyState, FactionBadge, Panel, StatCard, StatusBadge } from "@/components/admin/ui";
 import type { OverviewData } from "@/lib/admin/types";
 
-export function OverviewSection() {
+const ALERT_SECTION: Record<string, string> = {
+  Maintenance: "maintenance",
+  "Admin 2FA": "admins",
+  "Match server": "matches",
+  Database: "overview",
+  "Player sign-in": "overview",
+};
+
+function statusWord(label: string, state: "ok" | "warning" | "down") {
+  if (label === "Match server") return "Not configured";
+  if (state === "ok") return "Active";
+  if (state === "down") return "Offline";
+  return "Warning";
+}
+
+export function OverviewSection({ onOpen }: { onOpen?: (sectionId: string) => void }) {
   const [data, setData] = useState<OverviewData | null>(null);
   const [error, setError] = useState("");
 
@@ -39,7 +54,39 @@ export function OverviewSection() {
         <StatCard label="Online now" value="—" note="Needs match server" />
         <StatCard label="Active matches" value="—" note="Needs match server" />
         <StatCard label="Avg queue time" value="—" note="Needs matchmaking" />
+        <StatCard label="Matches started today" value="—" note="Not configured" />
+        <StatCard label="Matches completed today" value={data.resultsToday} note="Recorded results" />
+        <StatCard label="Abandonment rate" value="—" note="Not configured" />
+        <StatCard label="Avg match duration" value="—" note="Not configured" />
+        <StatCard label="Disconnect rate" value="—" note="Not configured" />
+        <StatCard label="Failed logins" value="—" note="Not configured" />
+        <StatCard label="Failed transactions" value="—" note="Not configured" />
       </div>
+
+      <Panel title="Needs attention">
+        {data.system.filter((item) => item.state !== "ok").length === 0 ? (
+          <EmptyState title="Nothing needs attention" body="Database, sign-in and maintenance look healthy." />
+        ) : (
+          <ul className="admin-feed">
+            {data.system
+              .filter((item) => item.state !== "ok")
+              .map((item) => (
+                <li key={item.label}>
+                  <strong>
+                    {statusWord(item.label, item.state)} · {item.label}
+                  </strong>
+                  <span>{item.detail}</span>
+                  <time>Checked {dateTime.format(new Date())}</time>
+                  {onOpen && ALERT_SECTION[item.label] ? (
+                    <button className="admin-link" type="button" onClick={() => onOpen(ALERT_SECTION[item.label])}>
+                      Open
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+          </ul>
+        )}
+      </Panel>
 
       <div className="admin-split">
         <Panel title="Faction win rates">
@@ -71,10 +118,18 @@ export function OverviewSection() {
           <ul className="admin-status-list">
             {data.system.map((item) => (
               <li key={item.label}>
-                <StatusBadge status={item.state === "ok" ? "active" : item.state === "down" ? "banned" : "suspended"} />
+                <StatusBadge
+                  status={
+                    item.state === "ok" ? "active" : item.state === "down" ? "banned" : "partial"
+                  }
+                />
                 <div>
                   <strong>{item.label}</strong>
-                  <span>{item.detail}</span>
+                  <span>
+                    {statusWord(item.label, item.state)}
+                    {" · "}
+                    {item.detail}
+                  </span>
                 </div>
               </li>
             ))}

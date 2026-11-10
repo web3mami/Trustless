@@ -111,6 +111,9 @@ export function ConfirmModal({
   confirmWord,
   needPassword,
   needCode,
+  extraLabel,
+  extraValue = "",
+  onExtraChange,
   busy,
   error,
   onClose,
@@ -123,6 +126,9 @@ export function ConfirmModal({
   confirmWord?: string;
   needPassword?: boolean;
   needCode?: boolean;
+  extraLabel?: string;
+  extraValue?: string;
+  onExtraChange?: (value: string) => void;
   busy?: boolean;
   error?: string;
   onClose: () => void;
@@ -137,7 +143,8 @@ export function ConfirmModal({
     reason.trim().length >= 4 &&
     (!confirmWord || typed === confirmWord) &&
     (!needPassword || password.length > 0) &&
-    (!needCode || code.replace(/\s/g, "").length === 6);
+    (!needCode || code.replace(/\s/g, "").length === 6) &&
+    (!extraLabel || extraValue.length >= 12);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -181,6 +188,19 @@ export function ConfirmModal({
           <label>
             Type <strong>{confirmWord}</strong> to confirm
             <input value={typed} onChange={(event) => setTyped(event.target.value)} required />
+          </label>
+        ) : null}
+        {extraLabel ? (
+          <label>
+            {extraLabel}
+            <input
+              type="password"
+              value={extraValue}
+              minLength={12}
+              onChange={(event) => onExtraChange?.(event.target.value)}
+              autoComplete="new-password"
+              required
+            />
           </label>
         ) : null}
         {needPassword ? (
