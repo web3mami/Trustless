@@ -290,44 +290,65 @@ export function Profile({
           </section>
         </div>
 
-        <section className="profile-section profile-chain">
-          <div>
-            <p className="kicker">On-chain Identity</p>
-            <h2>Network Passport</h2>
-          </div>
-          <dl>
-            <div className="profile-wallet-record">
-              <IdentityMark />
-              <div>
-                <dt>Embedded wallet</dt>
-                <dd className="profile-wallet-value">
-                  {address ? (
-                    <>
-                      <span title={address}>{shortAddress}</span>
-                      <span className="profile-wallet-status">Active</span>
-                      <button
-                        type="button"
-                        aria-label={copied ? "Address copied" : "Copy address"}
-                        title={copied ? "Copied" : "Copy address"}
-                        onClick={() => {
-                          void navigator.clipboard.writeText(address).then(() => {
-                            setCopied(true);
-                            window.setTimeout(() => setCopied(false), 1600);
-                          });
-                        }}
-                      >
-                        <CopyMark copied={copied} />
-                      </button>
-                    </>
-                  ) : walletError ? (
-                    <span className="profile-wallet-error">{walletError}</span>
-                  ) : (
-                    <span>Loading identity…</span>
-                  )}
-                </dd>
+        <section className="profile-section profile-chain" aria-label="Network Passport">
+          <svg className="profile-passport-mesh" viewBox="0 0 640 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <path d="M8 38h70l46 42h90l40-42h120l48 36h90l48-28" />
+            <path d="M24 128h86l40-48" />
+            <path d="M214 146h70l36-44" />
+            <path d="M360 132h96l42-46h110" />
+            <path d="M124 38v78M254 38v70M414 38v94" />
+            <circle cx="8" cy="38" r="2" />
+            <circle cx="78" cy="38" r="2.2" />
+            <circle cx="124" cy="80" r="2.3" />
+            <circle cx="214" cy="80" r="2" />
+            <circle cx="254" cy="38" r="2.2" />
+            <circle cx="374" cy="38" r="2" />
+            <circle cx="422" cy="74" r="2.2" />
+            <circle cx="512" cy="74" r="2" />
+            <circle cx="560" cy="46" r="2.1" />
+            <circle cx="110" cy="128" r="2" />
+            <circle cx="284" cy="146" r="1.8" />
+            <circle cx="456" cy="132" r="2" />
+            <circle cx="608" cy="86" r="1.8" />
+          </svg>
+          <header className="profile-passport-head">
+            <p>Network Passport</p>
+            <span className="profile-passport-verified">{address ? "Verified" : "Pending"}</span>
+          </header>
+          <div className="profile-passport-identity">
+            <span className="profile-passport-glyph" aria-hidden="true">◈</span>
+            <div>
+              <p>Embedded identity</p>
+              <div className="profile-wallet-value">
+                {address ? (
+                  <>
+                    <span title={address}>{shortAddress}</span>
+                    <button
+                      type="button"
+                      aria-label={copied ? "Address copied" : "Copy address"}
+                      onClick={() => {
+                        void copyText(address).then((ok) => {
+                          if (!ok) return;
+                          setCopied(true);
+                          window.setTimeout(() => setCopied(false), 1600);
+                        });
+                      }}
+                    >
+                      {copied ? "Copied" : "Copy"}
+                    </button>
+                  </>
+                ) : walletError ? (
+                  <span className="profile-wallet-error">{walletError}</span>
+                ) : (
+                  <span>Loading identity…</span>
+                )}
               </div>
             </div>
-          </dl>
+          </div>
+          <footer className="profile-passport-foot">
+            <span>Trustless Network</span>
+            <strong className="profile-wallet-status">{walletError ? "Unavailable" : address ? "Active" : "Waiting"}</strong>
+          </footer>
         </section>
 
         <footer className="profile-footer">
@@ -341,6 +362,32 @@ export function Profile({
       </div>
     </main>
   );
+}
+
+async function copyText(value: string) {
+  try {
+    if (navigator.clipboard && document.hasFocus()) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // The page can lose focus between click and write. Try the fallback.
+  }
+  try {
+    const field = document.createElement("textarea");
+    field.value = value;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.focus();
+    field.select();
+    const ok = document.execCommand("copy");
+    field.remove();
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
 function EmptyRecord({
@@ -562,26 +609,3 @@ function RoleMark() {
   );
 }
 
-function IdentityMark() {
-  return (
-    <svg className="profile-identity-mark" viewBox="0 0 18 18" aria-hidden="true">
-      <circle cx="9" cy="9" r="2" />
-      <path d="M9 2.4v2.2M9 13.4v2.2M2.4 9h2.2M13.4 9h2.2M4.3 4.3l1.6 1.6M12.1 12.1l1.6 1.6M13.7 4.3l-1.6 1.6M5.9 12.1l-1.6 1.6" />
-    </svg>
-  );
-}
-
-function CopyMark({ copied }: { copied: boolean }) {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      {copied ? (
-        <path d="m3.2 8.2 3 3.1 6.6-6.8" />
-      ) : (
-        <>
-          <path d="M5.2 5.2h7.2v8H5.2Z" />
-          <path d="M3.6 10.6V2.8h7.2" />
-        </>
-      )}
-    </svg>
-  );
-}
