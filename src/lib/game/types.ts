@@ -4,6 +4,14 @@ export type GameFaction = "village" | "werewolf" | "solo" | "neutral";
 /** What an investigation reports. Unknown hides the real faction. */
 export type InvestigationResult = GameFaction | "unknown";
 
+/** What the Auditor reads. This is not a faction. */
+export type Aura = "good" | "bad" | "unknown";
+
+export type PersistentResource = {
+  type: string;
+  max: number;
+};
+
 export type RoleCategory =
   | "investigative"
   | "protective"
@@ -20,6 +28,8 @@ export type ActionType =
   | "kill"
   | "protect"
   | "investigate"
+  | "read_role"
+  | "read_aura"
   | "compare"
   | "block"
   | "track"
@@ -66,6 +76,8 @@ export type RoleDefinition = {
   id: string;
   name: string;
   faction: GameFaction;
+  aura: Aura;
+  icon: string;
   category: RoleCategory;
   description: string;
   abilityDescription: string;
@@ -74,6 +86,8 @@ export type RoleDefinition = {
   maxTargets: number;
   charges: number | null;
   cooldown: number | null;
+  /** A resource that stays with the player across nights, such as Aegis shields. */
+  persistentResource?: PersistentResource | null;
   canSelfTarget: boolean;
   winCondition: string;
   /** When set, investigators see this instead of the real faction. */
@@ -100,6 +114,8 @@ export type EnginePlayer = {
   alive: boolean;
   /** Null means the role has no limited charge. */
   chargesLeft: number | null;
+  /** Remaining Aegis shields. Absent on roles that have no shield resource. */
+  shieldsRemaining?: number;
   /** Set when a daytime reveal has made this player's vote power active. */
   revealed?: boolean;
 };
@@ -120,11 +136,12 @@ export type NightEvent = {
   outcome: "resolved" | "blocked" | "invalid" | "protected" | "no_effect";
   public: boolean;
   message: string;
+  code?: "AEGIS_SHIELD_CONSUMED" | "AEGIS_SHIELDS_DEPLETED";
 };
 
 export type PrivateIntel = {
   playerId: string;
-  kind: "faction" | "comparison" | "track" | "reveal" | "note" | "blocked";
+  kind: "faction" | "role" | "aura" | "comparison" | "track" | "reveal" | "note" | "blocked";
   text: string;
 };
 

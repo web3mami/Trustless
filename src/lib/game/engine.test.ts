@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { assignRoles, viewFor } from "./assign";
 import { ROLES_BY_ID, TEST_ROSTER } from "./catalog";
-import { resolveDay, resolveNight } from "./resolve";
-import { validateDayAction, validateNightAction } from "./validate";
+import { resolveNight } from "./resolve";
 import type { EnginePlayer, NightAction } from "./types";
 import { evaluateWins, resolveVote } from "./wins";
 
@@ -26,9 +25,9 @@ const table = [
   player("wolf", "alpha-werewolf"),
   player("sk", "serial-killer"),
   player("town", "villager"),
-  player("seer", "seer"),
+  player("seer", "chain-analyst"),
   player("blocker", "roleblocker"),
-  player("detective", "detective"),
+  player("detective", "investigator"),
   player("tracker", "tracker"),
   player("other", "villager"),
 ];
@@ -76,7 +75,7 @@ describe("night resolution", () => {
   it("gives a roleblocked investigator no result", () => {
     const result = resolveNight(table, [
       act("stop", "blocker", "block", ["seer"]),
-      act("look", "seer", "investigate", ["wolf"]),
+      act("look", "seer", "read_role", ["wolf"]),
     ]);
     const intel = result.intel.find((entry) => entry.playerId === "seer");
     assert.equal(intel?.kind, "blocked");
@@ -96,20 +95,20 @@ describe("night resolution", () => {
   it("reports unknown when a role hides its faction", () => {
     const roles = {
       ...ROLES_BY_ID,
-      auditor: { ...ROLES_BY_ID.villager, id: "auditor", name: "Auditor", investigationResult: "unknown" as const },
+      quiet: { ...ROLES_BY_ID.villager, id: "quiet", aura: "unknown" as const },
     };
     const result = resolveNight(
-      [player("seer", "seer"), player("quiet", "auditor")],
-      [act("look", "seer", "investigate", ["quiet"])],
+      [player("auditor", "auditor"), player("quiet", "quiet")],
+      [act("look", "auditor", "read_aura", ["quiet"])],
       { roles },
     );
-    assert.equal(result.intel.find((entry) => entry.playerId === "seer")?.text, "unknown");
+    assert.equal(result.intel.find((entry) => entry.playerId === "auditor")?.text, "UNKNOWN");
   });
 
   it("records the target a blocked player attempted", () => {
     const result = resolveNight(table, [
       act("stop", "blocker", "block", ["seer"]),
-      act("look", "seer", "investigate", ["other"]),
+      act("look", "seer", "read_role", ["other"]),
       act("follow", "tracker", "track", ["seer"]),
     ]);
     assert.equal(result.intel.find((entry) => entry.playerId === "tracker")?.text, "other");
@@ -117,8 +116,8 @@ describe("night resolution", () => {
   });
 });
 
-describe("fool", () => {
-  const players = [player("fool", "fool"), player("a", "villager"), player("b", "villager")];
+describe("rugpuller", () => {
+  const players = [player("fool", "rugpuller"), player("a", "villager"), player("b", "villager")];
 
   it("wins when the daytime vote eliminates them", () => {
     const vote = resolveVote(players, [
@@ -138,6 +137,71 @@ describe("fool", () => {
     assert.deepEqual(night.deaths, ["fool"]);
     const wins = evaluateWins(night.players, { type: "night", playerId: "fool" });
     assert.equal(wins.some((win) => win.evaluator === "lynch"), false);
+  });
+
+  it("does not win from a day kill", () => {
+    const dead = players.map((entry) => (entry.id === "fool" ? { ...entry, alive: false } : entry));
+    const wins = evaluateWins(dead, { type: "day_kill", playerId: "fool" });
+    assert.equal(wins.some((win) => win.evaluator === "lynch"), false);
+  });
+});
+
+describe("investigations", () => {
+  it("names the exact role for the Chain Analyst", () => {
+    const result = resolveNight(table, [act("look", "seer", "read_role", ["doc"])]);
+    assert.equal(result.intel.find((entry) => entry.playerId === "seer")?.text, "Doctor");
+  });
+
+  it("reads good, bad, and unknown auras from any faction", () => {
+    const roles = {
+      ...ROLES_BY_ID,
+      "town-unknown": { ...ROLES_BY_ID.villager, id: "town-unknown", aura: "unknown" as const },
+      "wolf-unknown": { ...ROLES_BY_ID["alpha-werewolf"], id: "wolf-unknown", aura: "unknown" as const },
+      "solo-unknown": { ...ROLES_BY_ID["serial-killer"], id: "solo-unknown", aura: "unknown" as const },
+    };
+    const seats = [
+      player("auditor", "auditor"),
+      player("doc", "doctor"),
+      player("killer", "serial-killer"),
+      player("town", "town-unknown"),
+      player("wolf", "wolf-unknown"),
+      player("solo", "solo-unknown"),
+    ];
+    const read = (target: string) =>
+      resolveNight(seats, [act("look", "auditor", "read_aura", [target])], { roles }).intel.find(
+        (entry) => entry.playerId === "auditor",
+      )?.text;
+    assert.equal(read("doc"), "GOOD");
+    assert.equal(read("killer"), "BAD");
+    assert.equal(read("town"), "UNKNOWN");
+    assert.equal(read("wolf"), "UNKNOWN");
+    assert.equal(read("solo"), "UNKNOWN");
+  });
+});
+
+describe("aegis", () => {
+  it("spends persistent shields on itself and on the protected player", () => {
+    const first = resolveNight(
+      [player("aegis", "aegis"), player("b", "villager"), player("sk", "serial-killer")],
+      [act("cover", "aegis", "protect", ["b"]), act("knife", "sk", "kill", ["b"])],
+    );
+    assert.equal(first.deaths.includes("b"), false);
+    assert.equal(first.players.find((entry) => entry.id === "aegis")?.shieldsRemaining, 1);
+    assert.equal(first.events.some((entry) => entry.code === "AEGIS_SHIELD_CONSUMED"), true);
+
+    const second = resolveNight(first.players, [
+      act("cover", "aegis", "protect", ["b"]),
+      act("knife", "sk", "kill", ["aegis"]),
+    ]);
+    assert.equal(second.deaths.includes("aegis"), false);
+    assert.equal(second.players.find((entry) => entry.id === "aegis")?.shieldsRemaining, 0);
+    assert.equal(second.events.some((entry) => entry.code === "AEGIS_SHIELDS_DEPLETED"), true);
+
+    const third = resolveNight(second.players, [
+      act("cover", "aegis", "protect", ["b"]),
+      act("knife", "sk", "kill", ["b"]),
+    ]);
+    assert.deepEqual(third.deaths, ["b"]);
   });
 });
 
@@ -162,7 +226,7 @@ describe("assignment", () => {
     assert.equal(view.teammates.length, 0);
     assert.equal(view.self.roleId, "villager");
     assert.equal(hidden.includes("serial-killer"), false);
-    assert.equal(hidden.includes("fool"), false);
+    assert.equal(hidden.includes("rugpuller"), false);
     assert.equal(hidden.includes("alpha-werewolf"), false);
   });
 
@@ -173,50 +237,21 @@ describe("assignment", () => {
     const idsSeen = view.teammates.map((teammate) => teammate.roleId).sort();
     assert.deepEqual(idsSeen, ["guardian-werewolf", "roleblocker-werewolf", "seer-werewolf"]);
     assert.equal(JSON.stringify(view).includes("serial-killer"), false);
-    assert.equal(JSON.stringify(view).includes("fool"), false);
+    assert.equal(JSON.stringify(view).includes("rugpuller"), false);
   });
 });
 
-describe("mayor", () => {
+describe("governor", () => {
   function seat(id: string, roleId = "villager"): EnginePlayer {
-    return { id, name: id, roleId, alive: true, chargesLeft: roleId === "mayor" ? 1 : null };
+    return { id, name: id, roleId, alive: true, chargesLeft: null };
   }
 
-  const reveal = {
-    id: "reveal",
-    actorId: "mayor",
-    type: "special" as const,
-    scope: "personal" as const,
-    targets: [] as string[],
-  };
-
-  it("counts as one vote until the daytime reveal", () => {
+  it("counts the configured vote power without a reveal", () => {
     const ballots = [
-      { voterId: "mayor", targetId: "a" },
-      { voterId: "b", targetId: "mayor" },
+      { voterId: "governor", targetId: "a" },
+      { voterId: "b", targetId: "governor" },
     ];
-    const hidden = resolveVote([seat("mayor", "mayor"), seat("a"), seat("b")], ballots);
-    assert.equal(hidden.eliminatedId, null);
-
-    const shown = resolveVote(
-      [seat("mayor", "mayor"), seat("a"), seat("b")].map((player) =>
-        player.id === "mayor" ? { ...player, revealed: true } : player,
-      ),
-      ballots,
-    );
-    assert.equal(shown.eliminatedId, "a");
-  });
-
-  it("reveals during the day and cannot reveal at night", () => {
-    const day = resolveDay([seat("mayor", "mayor"), seat("a")], [reveal], {
-      day: 1,
-      voteResolved: false,
-    });
-    assert.equal(day.players.find((player) => player.id === "mayor")?.revealed, true);
-    assert.equal(day.announcements[0], "mayor reveals themself as the Mayor.");
-    const night = validateNightAction(day.players, reveal);
-    assert.equal(night.ok, false);
-    const again = validateDayAction(day.players, reveal, { day: 1, voteResolved: false });
-    assert.equal(again.ok, false);
+    const vote = resolveVote([seat("governor", "governor"), seat("a"), seat("b")], ballots);
+    assert.equal(vote.eliminatedId, "a");
   });
 });

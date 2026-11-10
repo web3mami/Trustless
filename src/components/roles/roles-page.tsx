@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FactionIcon } from "@/components/faction-icon";
 import { RoleIcon } from "@/components/roles/role-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -70,7 +71,10 @@ export function RolesPage({ onBack }: { onBack: () => void }) {
               <RoleSymbol role={role} />
               <span className="roles-card-copy">
                 <strong>{role.name}</strong>
-                <span>{role.category ? CATEGORY_LABEL[role.category] : ""}</span>
+                <span className="roles-card-meta">
+                  <FactionIcon faction={profileFaction(role.faction)} className="roles-faction-badge" />
+                  <span>{role.category ? CATEGORY_LABEL[role.category] : ""}</span>
+                </span>
                 <p>{role.abilityDescription}</p>
               </span>
             </button>

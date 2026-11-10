@@ -4,7 +4,7 @@ import type { EnginePlayer, RoleDefinition, Win } from "./types";
 
 /**
  * Win checks live here, not in the interface.
- * Fool is immediate and only fires for a daytime Village vote.
+ * Rugpuller is immediate and only fires for a daytime Village vote.
  * A night kill or a Vigilante shot never counts as that vote.
  */
 export function evaluateWins(

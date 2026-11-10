@@ -16,6 +16,7 @@ export type {
   ActionScope,
   ActionType,
   EnginePlayer,
+  Aura,
   GameFaction,
   InvestigationResult,
   NightAction,

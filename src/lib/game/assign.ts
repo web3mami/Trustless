@@ -45,6 +45,9 @@ export function assignRoles(
         roleId: role.id,
         alive: true,
         chargesLeft: role.charges,
+        ...(role.persistentResource?.type === "shields"
+          ? { shieldsRemaining: role.persistentResource.max }
+          : {}),
       };
     }),
   };

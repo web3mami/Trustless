@@ -5,8 +5,9 @@ import { AdminApiError, adminAct, adminGet } from "@/components/admin/admin-api"
 import { ConfirmModal, EmptyState, FactionBadge, Panel } from "@/components/admin/ui";
 import { can, type Permission } from "@/lib/admin/permissions";
 import type { AdminIdentity } from "@/lib/admin/types";
+import { ROLE_ICON_OPTIONS, RoleIcon } from "@/components/roles/role-icon";
 import { FACTION_NAME, FACTION_ORDER, profileFaction } from "@/lib/game/catalog";
-import type { ActionScope, ActionType, GameFaction, InvestigationResult, RoleCategory, RoleDefinition, RolePhase, TargetType, WinEvaluator } from "@/lib/game/types";
+import type { ActionScope, ActionType, Aura, GameFaction, InvestigationResult, RoleCategory, RoleDefinition, RolePhase, TargetType, WinEvaluator } from "@/lib/game/types";
 
 const CATEGORIES: { id: RoleCategory; label: string }[] = [
   { id: "investigative", label: "Investigative" },
@@ -28,6 +29,8 @@ const ACTIONS: { id: ActionType | "none"; label: string }[] = [
   { id: "kill", label: "Kill" },
   { id: "protect", label: "Protect" },
   { id: "investigate", label: "Investigate" },
+  { id: "read_role", label: "Read exact role" },
+  { id: "read_aura", label: "Read aura" },
   { id: "compare", label: "Compare two players" },
   { id: "block", label: "Block an action" },
   { id: "track", label: "Track" },
@@ -72,10 +75,19 @@ const WIN_COPY: Record<GameFaction, { text: string; evaluator: WinEvaluator; hos
   },
 };
 
+const AURA_OPTIONS: { id: Aura; label: string }[] = [
+  { id: "good", label: "Good" },
+  { id: "bad", label: "Bad" },
+  { id: "unknown", label: "Unknown" },
+];
+
 type RoleDraft = {
   id: string;
   name: string;
   faction: GameFaction;
+  aura: Aura;
+  icon: string;
+  shields: string;
   category: RoleCategory;
   description: string;
   abilityDescription: string;
@@ -109,6 +121,9 @@ function emptyDraft(): RoleDraft {
     id: "",
     name: "",
     faction: "village",
+    aura: "unknown",
+    icon: "villager",
+    shields: "",
     category: "support",
     description: "",
     abilityDescription: "",
@@ -143,6 +158,9 @@ function draftFromRole(role: RoleDefinition): RoleDraft {
     id: role.id,
     name: role.name,
     faction: role.faction,
+    aura: role.aura,
+    icon: role.icon,
+    shields: role.persistentResource?.type === "shields" ? String(role.persistentResource.max) : "",
     category: role.category,
     description: role.description,
     abilityDescription: role.abilityDescription,
@@ -188,6 +206,8 @@ function roleBody(draft: RoleDraft) {
     id: draft.id.trim(),
     name: draft.name.trim(),
     faction: draft.faction,
+    aura: draft.aura,
+    icon: draft.icon,
     category: draft.category,
     description: draft.description.trim(),
     abilityDescription: draft.abilityDescription.trim(),
@@ -196,6 +216,7 @@ function roleBody(draft: RoleDraft) {
     maxTargets: targetType === "multiple" ? Number(draft.maxTargets) : targetType === "none" ? 0 : 1,
     charges,
     cooldown: null,
+    persistentResource: draft.shields.trim() === "" ? null : { type: "shields", max: Number(draft.shields) },
     canSelfTarget: draft.canSelfTarget,
     winCondition: draft.winCondition.trim(),
     investigationResult: draft.investigationResult || null,
@@ -357,6 +378,8 @@ export function RoleEditor({ admin }: { admin: AdminIdentity }) {
               <thead>
                 <tr>
                   <th>Role</th>
+                  <th>Aura</th>
+                  <th>Shields</th>
                   <th>Phase</th>
                   <th>Action</th>
                   <th>Roster</th>
@@ -367,8 +390,11 @@ export function RoleEditor({ admin }: { admin: AdminIdentity }) {
                 {rows.map((role) => (
                   <tr key={role.id}>
                     <td>
+                      <RoleIcon role={role} className="admin-role-icon" />
                       <FactionBadge faction={profileFaction(role.faction)} /> {role.name}
                     </td>
+                    <td>{AURA_OPTIONS.find((item) => item.id === role.aura)?.label ?? role.aura}</td>
+                    <td>{role.persistentResource?.type === "shields" ? role.persistentResource.max : "—"}</td>
                     <td>{PHASES.find((item) => item.id === role.phase)?.label ?? role.phase}</td>
                     <td>{actionLabel(role)}</td>
                     <td>{role.enabled ? "Shown" : "Hidden"}</td>
@@ -463,6 +489,10 @@ function RoleForm({
     } else if (draft.targetType === "none") {
       next.targetType = "single";
     }
+    if (actionType === "compare") {
+      next.targetType = "multiple";
+      next.maxTargets = draft.maxTargets === "" ? "2" : draft.maxTargets;
+    }
     if (actionType !== "kill") next.actionScope = "personal";
     if (draft.phase === "passive" && actionType !== "none" && actionType !== "vote_modifier") {
       next.phase = "night";
@@ -503,6 +533,26 @@ function RoleForm({
             {FACTION_ORDER.map((faction) => (
               <option key={faction} value={faction}>
                 {FACTION_NAME[faction]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Aura
+          <select value={draft.aura} onChange={(event) => update({ aura: event.target.value as Aura })}>
+            {AURA_OPTIONS.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Icon
+          <select value={draft.icon} onChange={(event) => update({ icon: event.target.value })}>
+            {ROLE_ICON_OPTIONS.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
               </option>
             ))}
           </select>
@@ -579,6 +629,15 @@ function RoleForm({
             <input value={draft.maxTargets} inputMode="numeric" onChange={(event) => update({ maxTargets: event.target.value.replace(/\D/g, "").slice(0, 1) })} />
           </label>
         ) : null}
+        <label>
+          Shields
+          <input
+            value={draft.shields}
+            inputMode="numeric"
+            placeholder="None"
+            onChange={(event) => update({ shields: event.target.value.replace(/\D/g, "").slice(0, 2) })}
+          />
+        </label>
         <label>
           Charges
           <input

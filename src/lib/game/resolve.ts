@@ -42,6 +42,8 @@ const STAGE_FOR = {
   block: "block",
   protect: "protect",
   investigate: "investigate",
+  read_role: "investigate",
+  read_aura: "investigate",
   compare: "investigate",
   track: "investigate",
   kill: "kill",
@@ -63,6 +65,13 @@ export function resolveNight(
   const intel: PrivateIntel[] = [];
   const accepted: NightAction[] = [];
   const seen = new Set<string>();
+  const shields = new Map<string, number>();
+  for (const player of players) {
+    const resource = roles[player.roleId]?.persistentResource;
+    if (resource?.type === "shields") {
+      shields.set(player.id, player.shieldsRemaining ?? resource.max);
+    }
+  }
 
   for (const action of actions) {
     const key = `${action.actorId}:${action.scope}`;
@@ -89,10 +98,17 @@ export function resolveNight(
   }
 
   const protectedIds = new Set<string>();
+  const aegisCovers: { aegisId: string; targetId: string }[] = [];
   if (order.includes("protect")) {
     for (const action of inStage(accepted, "protect")) {
       if (stopped(players, blocked, action, roles)) {
         events.push(event(action, "blocked", false, "The protection did not resolve."));
+        continue;
+      }
+      const actorRole = roles[players.find((player) => player.id === action.actorId)?.roleId ?? ""];
+      if (actorRole?.persistentResource?.type === "shields") {
+        aegisCovers.push({ aegisId: action.actorId, targetId: action.targets[0] });
+        events.push(event(action, "resolved", false, "Aegis marks a player with a shield."));
         continue;
       }
       protectedIds.add(action.targets[0]);
@@ -134,6 +150,10 @@ export function resolveNight(
         events.push(event(action, "protected", true, `${nameOf(players, targetId)} survived the night.`));
         continue;
       }
+      if (spendAegisShield(players, roles, shields, aegisCovers, targetId, events)) {
+        events.push(event(action, "protected", true, `${nameOf(players, targetId)} survived the night.`));
+        continue;
+      }
       if (!isAlive(players, targetId) || deaths.has(targetId)) {
         events.push(event(action, "no_effect", false, "The target was already gone."));
         continue;
@@ -162,9 +182,11 @@ export function resolveNight(
     }
   }
 
-  const next = players.map((player) =>
-    deaths.has(player.id) ? { ...player, alive: false } : player,
-  );
+  const next = players.map((player) => ({
+    ...player,
+    alive: deaths.has(player.id) ? false : player.alive,
+    ...(shields.has(player.id) ? { shieldsRemaining: shields.get(player.id) } : {}),
+  }));
   return { players: next, events, intel, deaths: [...deaths] };
 }
 
@@ -222,7 +244,32 @@ function readAction(
   events: NightEvent[],
 ) {
   const target = (id: string) => players.find((player) => player.id === id);
-  if (action.type === "investigate") {
+  if (action.type === "read_role") {
+    const player = target(action.targets[0]);
+    const role = player ? roles[player.roleId] : undefined;
+    intel.push({ playerId: action.actorId, kind: "role", text: role?.name ?? "Unknown" });
+  } else if (action.type === "read_aura") {
+    const player = target(action.targets[0]);
+    const role = player ? roles[player.roleId] : undefined;
+    const aura = role?.aura ?? "unknown";
+    intel.push({
+      playerId: action.actorId,
+      kind: "aura",
+      text: aura === "good" ? "GOOD" : aura === "bad" ? "BAD" : "UNKNOWN",
+    });
+  } else if (action.type === "compare") {
+    const first = target(action.targets[0]);
+    const second = target(action.targets[1]);
+    const same =
+      !!first &&
+      !!second &&
+      roles[first.roleId]?.faction === roles[second.roleId]?.faction;
+    intel.push({
+      playerId: action.actorId,
+      kind: "comparison",
+      text: same ? "SAME FACTION" : "DIFFERENT FACTION",
+    });
+  } else if (action.type === "investigate") {
     const player = target(action.targets[0]);
     const role = player ? roles[player.roleId] : undefined;
     const actorRole = roles[players.find((entry) => entry.id === action.actorId)?.roleId ?? ""];
@@ -234,18 +281,6 @@ function readAction(
           ? `${faction}, ${role.category}`
           : faction;
     intel.push({ playerId: action.actorId, kind: "faction", text });
-  } else if (action.type === "compare") {
-    const first = target(action.targets[0]);
-    const second = target(action.targets[1]);
-    const same =
-      first &&
-      second &&
-      apparentFaction(roles[first.roleId]) === apparentFaction(roles[second.roleId]);
-    intel.push({
-      playerId: action.actorId,
-      kind: "comparison",
-      text: same ? "SAME FACTION" : "DIFFERENT FACTION",
-    });
   } else if (action.type === "track") {
     const attempts = accepted.filter((entry) => entry.actorId === action.targets[0]);
     const names = attempts.flatMap((entry) => entry.targets.map((id) => nameOf(players, id)));
@@ -297,6 +332,49 @@ function isAlive(players: EnginePlayer[], playerId: string) {
 
 function nameOf(players: EnginePlayer[], playerId: string) {
   return players.find((player) => player.id === playerId)?.name ?? playerId;
+}
+
+function spendAegisShield(
+  players: EnginePlayer[],
+  roles: Record<string, RoleDefinition>,
+  shields: Map<string, number>,
+  covers: { aegisId: string; targetId: string }[],
+  targetId: string,
+  events: NightEvent[],
+) {
+  const target = players.find((player) => player.id === targetId);
+  const ownShield =
+    target &&
+    roles[target.roleId]?.persistentResource?.type === "shields" &&
+    (shields.get(target.id) ?? 0) > 0
+      ? target.id
+      : undefined;
+  const cover = covers.find(
+    (entry) => entry.targetId === targetId && (shields.get(entry.aegisId) ?? 0) > 0 && isAlive(players, entry.aegisId),
+  );
+  const defenderId = ownShield ?? cover?.aegisId;
+  if (!defenderId) return false;
+  const left = (shields.get(defenderId) ?? 0) - 1;
+  shields.set(defenderId, left);
+  events.push({
+    actorId: defenderId,
+    targetIds: [targetId],
+    outcome: "protected",
+    public: false,
+    message: "AEGIS_SHIELD_CONSUMED",
+    code: "AEGIS_SHIELD_CONSUMED",
+  });
+  if (left === 0) {
+    events.push({
+      actorId: defenderId,
+      targetIds: [targetId],
+      outcome: "no_effect",
+      public: false,
+      message: "AEGIS_SHIELDS_DEPLETED",
+      code: "AEGIS_SHIELDS_DEPLETED",
+    });
+  }
+  return true;
 }
 
 function event(

@@ -3552,6 +3552,14 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   white-space: nowrap;
 }
 
+.admin-role-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: -4px;
+  color: var(--faction, currentColor);
+}
+
 .admin-table td {
   padding: 8px;
   border-bottom: 1px solid rgba(24, 44, 66, 0.08);
@@ -4133,7 +4141,21 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   text-overflow: ellipsis;
 }
 
-.roles-card-copy > span {
+.roles-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.roles-faction-badge {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  color: var(--faction, currentColor);
+}
+
+.roles-card-meta > span {
   display: block;
   overflow: hidden;
   margin: 0;
@@ -4207,7 +4229,12 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
     font-size: 16px;
   }
 
-  .roles-card-copy > span {
+  .roles-faction-badge {
+    width: 14px;
+    height: 14px;
+  }
+
+  .roles-card-meta > span {
     font-size: 10px;
     letter-spacing: 0.12em;
   }

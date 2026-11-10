@@ -1,8 +1,10 @@
 import type {
   ActionScope,
   ActionType,
+  Aura,
   GameFaction,
   InvestigationResult,
+  PersistentResource,
   RoleCategory,
   RoleDefinition,
   RolePhase,
@@ -12,6 +14,7 @@ import type {
 } from "./types";
 
 const FACTIONS = ["village", "werewolf", "solo", "neutral"] as const;
+const AURAS = ["good", "bad", "unknown"] as const;
 const INVESTIGATION_RESULTS = ["village", "werewolf", "solo", "neutral", "unknown"] as const;
 const CATEGORIES = ["investigative", "protective", "support", "killing", "special"] as const;
 const PHASES = ["day", "night", "both", "passive"] as const;
@@ -20,6 +23,8 @@ const ACTIONS = [
   "kill",
   "protect",
   "investigate",
+  "read_role",
+  "read_aura",
   "compare",
   "block",
   "track",
@@ -97,6 +102,14 @@ function readRole(input: unknown): RoleDefinition {
   }
 
   const faction = choice<GameFaction>(input.faction, FACTIONS, "Faction");
+  const aura: Aura =
+    input.aura == null || input.aura === ""
+      ? "unknown"
+      : choice<Aura>(input.aura, AURAS, "Aura");
+  const icon =
+    typeof input.icon === "string" && input.icon.trim()
+      ? text(input.icon, 2, 40, "Icon").toLowerCase().replace(/[^a-z0-9-]/g, "")
+      : id;
   const category = choice<RoleCategory>(input.category, CATEGORIES, "Category");
   const phase = choice<RolePhase>(input.phase, PHASES, "Phase");
   const description = text(input.description, 8, 400, "Description");
@@ -142,6 +155,12 @@ function readRole(input: unknown): RoleDefinition {
 
   const charges = optionalCount(input.charges, 20, "Charges");
   const cooldown = optionalCount(input.cooldown, 10, "Cooldown");
+  let persistentResource: PersistentResource | null = null;
+  if (input.persistentResource !== null && input.persistentResource !== undefined && input.persistentResource !== "") {
+    if (!isRecord(input.persistentResource)) fail("The persistent resource is missing.");
+    const type = text(input.persistentResource.type, 2, 24, "Resource").toLowerCase();
+    persistentResource = { type, max: whole(input.persistentResource.max, 1, 10, "Resource amount") };
+  }
   const canSelfTarget = targetType === "self" ? true : targetType === "none" ? false : flag(input.canSelfTarget, "Self target");
   const enabled = flag(input.enabled, "Shown on the roster");
   const votePower = whole(input.votePower, 1, 5, "Vote power");
@@ -196,6 +215,8 @@ function readRole(input: unknown): RoleDefinition {
     id,
     name,
     faction,
+    aura,
+    icon,
     category,
     description,
     abilityDescription,
@@ -204,6 +225,7 @@ function readRole(input: unknown): RoleDefinition {
     maxTargets,
     charges,
     cooldown,
+    persistentResource,
     canSelfTarget,
     winCondition,
     investigationResult,
