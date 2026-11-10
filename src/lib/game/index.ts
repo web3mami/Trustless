@@ -17,6 +17,7 @@ export type {
   ActionType,
   EnginePlayer,
   GameFaction,
+  InvestigationResult,
   NightAction,
   PrivateIntel,
   ReservedActionType,

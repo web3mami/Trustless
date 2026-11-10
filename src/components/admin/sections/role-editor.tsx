@@ -6,7 +6,7 @@ import { ConfirmModal, EmptyState, FactionBadge, Panel } from "@/components/admi
 import { can, type Permission } from "@/lib/admin/permissions";
 import type { AdminIdentity } from "@/lib/admin/types";
 import { FACTION_NAME, FACTION_ORDER, profileFaction } from "@/lib/game/catalog";
-import type { ActionScope, ActionType, GameFaction, RoleCategory, RoleDefinition, RolePhase, TargetType, WinEvaluator } from "@/lib/game/types";
+import type { ActionScope, ActionType, GameFaction, InvestigationResult, RoleCategory, RoleDefinition, RolePhase, TargetType, WinEvaluator } from "@/lib/game/types";
 
 const CATEGORIES: { id: RoleCategory; label: string }[] = [
   { id: "investigative", label: "Investigative" },
@@ -99,7 +99,7 @@ type RoleDraft = {
   deadOnly: boolean;
   werewolfOnly: boolean;
   otherFactionOnly: boolean;
-  investigationResult: "" | GameFaction;
+  investigationResult: "" | InvestigationResult;
   notes: string;
   reason: string;
 };
@@ -635,6 +635,7 @@ function RoleForm({
             onChange={(event) => update({ investigationResult: event.target.value as RoleDraft["investigationResult"] })}
           >
             <option value="">Their real faction</option>
+            <option value="unknown">Unknown</option>
             {FACTION_ORDER.map((faction) => (
               <option key={faction} value={faction}>
                 {FACTION_NAME[faction]}

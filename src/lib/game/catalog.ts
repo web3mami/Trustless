@@ -1,5 +1,5 @@
 import type { Faction } from "@/lib/roles";
-import type { GameFaction, ResolutionStage, RoleDefinition, RoleReveal } from "./types";
+import type { GameFaction, InvestigationResult, ResolutionStage, RoleDefinition, RoleReveal } from "./types";
 
 export const DEFAULT_RESOLUTION_ORDER: ResolutionStage[] = [
   "block",
@@ -453,6 +453,6 @@ export function revealFor(role: RoleDefinition): RoleReveal {
   };
 }
 
-export function apparentFaction(role: RoleDefinition): GameFaction {
+export function apparentFaction(role: RoleDefinition): InvestigationResult {
   return role.investigationResult ?? role.faction;
 }

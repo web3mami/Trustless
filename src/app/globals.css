@@ -4113,14 +4113,14 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   text-align: left;
 }
 
-.roles-card .roles-portrait {
-  aspect-ratio: 1 / 1;
+.roles-card .roles-symbol {
+  aspect-ratio: 5 / 3;
   height: auto;
 }
 
 .roles-card-copy {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   padding: 4px 5px 5px;
   border-top: 2px solid var(--faction, currentColor);
 }
@@ -4133,34 +4133,28 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   text-overflow: ellipsis;
 }
 
-.roles-card-copy > span,
-.roles-card p {
-  display: none;
+.roles-card-copy > span {
+  display: block;
+  overflow: hidden;
   margin: 0;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0.66;
 }
 
-.roles-emblem {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--faction, #5a876e);
-  border-radius: 50%;
-  background: rgba(10, 14, 18, 0.84);
-  color: #f3efe4;
-}
-
-.roles-emblem svg {
-  width: 11px;
-  height: 11px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.roles-card p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.25;
+  opacity: 0.82;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 @media (min-width: 800px) {
@@ -4198,8 +4192,8 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
     border-radius: 10px;
   }
 
-  .roles-card .roles-portrait {
-    aspect-ratio: 4 / 5;
+  .roles-card .roles-symbol {
+    aspect-ratio: 5 / 3;
     height: auto;
   }
 
@@ -4214,12 +4208,8 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   }
 
   .roles-card-copy > span {
-    display: block;
     font-size: 10px;
-    font-weight: 700;
     letter-spacing: 0.12em;
-    text-transform: uppercase;
-    opacity: 0.66;
   }
 
   .roles-card p {
@@ -4232,17 +4222,6 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
     -webkit-line-clamp: 2;
   }
 
-  .roles-emblem {
-    right: 8px;
-    bottom: 8px;
-    width: 30px;
-    height: 30px;
-  }
-
-  .roles-portrait .roles-mark {
-    width: 42px;
-    height: 42px;
-  }
 }
 
 .roles-card {
@@ -4259,53 +4238,41 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 }
 
 .roles-card[data-faction="good"],
-.roles-portrait[data-faction="good"] {
+.roles-symbol[data-faction="good"] {
   --faction: #5a876e;
 }
 
 .roles-card[data-faction="werewolf"],
-.roles-portrait[data-faction="werewolf"] {
+.roles-symbol[data-faction="werewolf"] {
   --faction: #a45c56;
 }
 
 .roles-card[data-faction="solo"],
-.roles-portrait[data-faction="solo"] {
+.roles-symbol[data-faction="solo"] {
   --faction: #c4a15a;
 }
 
 .roles-card[data-faction="neutral"],
-.roles-portrait[data-faction="neutral"] {
+.roles-symbol[data-faction="neutral"] {
   --faction: #7f8d9c;
 }
 
-.roles-portrait {
-  position: relative;
+.roles-symbol {
   display: grid;
   place-items: center;
-  aspect-ratio: 3 / 4;
   width: 100%;
   overflow: hidden;
   background:
-    linear-gradient(180deg, transparent 70%, color-mix(in srgb, var(--faction, #5a876e), transparent 30%)),
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--faction, #5a876e) 32%, transparent), transparent 70%),
     #101820;
   color: var(--faction, #5a876e);
 }
 
-.roles-portrait img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 18%;
-}
-
-.roles-mark {
-  width: 22px;
-  height: 22px;
-}
-
-.roles-portrait .roles-mark {
-  width: 28px;
-  height: 28px;
+.roles-symbol svg,
+.roles-icon {
+  width: min(46%, 64px);
+  height: auto;
+  aspect-ratio: 1;
 }
 
 .roles-shade {
@@ -4329,11 +4296,11 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   color: #e7e2d8;
 }
 
-.roles-detail .roles-portrait {
-  margin: 4px 0 14px;
-  border-radius: 8px;
-  overflow: hidden;
-  max-height: 280px;
+.roles-detail .roles-symbol {
+  width: 96px;
+  aspect-ratio: 1;
+  margin: 8px 0 14px;
+  border-radius: 10px;
 }
 
 .roles-detail-head {

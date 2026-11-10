@@ -60,4 +60,11 @@ describe("role input", () => {
       assert.equal(parsed.targetRules.excludeSelf, true);
     }
   });
+
+  it("lets investigators see unknown", () => {
+    const villager = ROLES.find((role) => role.id === "villager");
+    const parsed = parseRoleInput({ ...villager, id: "auditor", name: "Auditor", investigationResult: "unknown" });
+    assert.equal(typeof parsed, "object");
+    if (typeof parsed === "object") assert.equal(parsed.investigationResult, "unknown");
+  });
 });

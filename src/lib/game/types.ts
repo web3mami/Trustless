@@ -1,6 +1,9 @@
 /** Factions used by the match engine. Profile stats still say "good" for Village. */
 export type GameFaction = "village" | "werewolf" | "solo" | "neutral";
 
+/** What an investigation reports. Unknown hides the real faction. */
+export type InvestigationResult = GameFaction | "unknown";
+
 export type RoleCategory =
   | "investigative"
   | "protective"
@@ -73,8 +76,8 @@ export type RoleDefinition = {
   cooldown: number | null;
   canSelfTarget: boolean;
   winCondition: string;
-  /** When set, investigators see this faction instead of the real one. */
-  investigationResult?: GameFaction;
+  /** When set, investigators see this instead of the real faction. */
+  investigationResult?: InvestigationResult;
   actionType: ActionType | null;
   actionScope: ActionScope;
   actionPriority: number;

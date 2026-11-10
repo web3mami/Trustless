@@ -2,6 +2,7 @@ import type {
   ActionScope,
   ActionType,
   GameFaction,
+  InvestigationResult,
   RoleCategory,
   RoleDefinition,
   RolePhase,
@@ -11,6 +12,7 @@ import type {
 } from "./types";
 
 const FACTIONS = ["village", "werewolf", "solo", "neutral"] as const;
+const INVESTIGATION_RESULTS = ["village", "werewolf", "solo", "neutral", "unknown"] as const;
 const CATEGORIES = ["investigative", "protective", "support", "killing", "special"] as const;
 const PHASES = ["day", "night", "both", "passive"] as const;
 const TARGETS = ["self", "single", "multiple", "none"] as const;
@@ -173,9 +175,9 @@ function readRole(input: unknown): RoleDefinition {
     otherFactionOnly: otherFactionOnly || undefined,
   };
 
-  let investigationResult: GameFaction | undefined;
+  let investigationResult: InvestigationResult | undefined;
   if (input.investigationResult !== null && input.investigationResult !== undefined && input.investigationResult !== "") {
-    const seen = choice<GameFaction>(input.investigationResult, FACTIONS, "Investigated faction");
+    const seen = choice<InvestigationResult>(input.investigationResult, INVESTIGATION_RESULTS, "Investigated faction");
     if (seen !== faction) investigationResult = seen;
   }
 

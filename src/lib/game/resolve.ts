@@ -228,9 +228,11 @@ function readAction(
     const actorRole = roles[players.find((entry) => entry.id === action.actorId)?.roleId ?? ""];
     const faction = role ? apparentFaction(role) : "village";
     const text =
-      actorRole?.id === "seer-werewolf" && role
-        ? `${faction}, ${role.category}`
-        : faction;
+      faction === "unknown"
+        ? "unknown"
+        : actorRole?.id === "seer-werewolf" && role
+          ? `${faction}, ${role.category}`
+          : faction;
     intel.push({ playerId: action.actorId, kind: "faction", text });
   } else if (action.type === "compare") {
     const first = target(action.targets[0]);

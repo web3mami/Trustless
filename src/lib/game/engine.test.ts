@@ -93,6 +93,19 @@ describe("night resolution", () => {
     assert.equal(result.intel.find((entry) => entry.playerId === "detective")?.text, "DIFFERENT FACTION");
   });
 
+  it("reports unknown when a role hides its faction", () => {
+    const roles = {
+      ...ROLES_BY_ID,
+      auditor: { ...ROLES_BY_ID.villager, id: "auditor", name: "Auditor", investigationResult: "unknown" as const },
+    };
+    const result = resolveNight(
+      [player("seer", "seer"), player("quiet", "auditor")],
+      [act("look", "seer", "investigate", ["quiet"])],
+      { roles },
+    );
+    assert.equal(result.intel.find((entry) => entry.playerId === "seer")?.text, "unknown");
+  });
+
   it("records the target a blocked player attempted", () => {
     const result = resolveNight(table, [
       act("stop", "blocker", "block", ["seer"]),

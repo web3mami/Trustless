@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FactionIcon } from "@/components/faction-icon";
+import { RoleIcon } from "@/components/roles/role-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   FACTION_NAME,
@@ -9,13 +9,14 @@ import {
   profileFaction,
   type RoleDefinition,
 } from "@/lib/game";
+import type { RoleCategory } from "@/lib/game/types";
 
-const ROLE_ART: Partial<Record<string, string>> = {
-  villager: "/roles/villager.jpg",
-  seer: "/roles/seer.jpg",
-  doctor: "/roles/doctor.jpg",
-  detective: "/roles/detective.jpg",
-  roleblocker: "/roles/roleblocker.jpg",
+const CATEGORY_LABEL: Record<RoleCategory, string> = {
+  investigative: "Investigative",
+  protective: "Protective",
+  support: "Support",
+  killing: "Killing",
+  special: "Special",
 };
 
 export function RolesPage({ onBack }: { onBack: () => void }) {
@@ -66,10 +67,10 @@ export function RolesPage({ onBack }: { onBack: () => void }) {
               data-faction={profileFaction(role.faction)}
               onClick={() => setSelectedId(role.id)}
             >
-              <RolePortrait role={role} />
+              <RoleSymbol role={role} />
               <span className="roles-card-copy">
                 <strong>{role.name}</strong>
-                <span>{FACTION_NAME[role.faction]}</span>
+                <span>{role.category ? CATEGORY_LABEL[role.category] : ""}</span>
                 <p>{role.abilityDescription}</p>
               </span>
             </button>
@@ -109,7 +110,7 @@ function RoleDetail({ role, onClose }: { role: RoleDefinition; onClose: () => vo
             Close
           </button>
         </div>
-        <RolePortrait role={role} />
+        <RoleSymbol role={role} />
         <h2 id="role-detail-title" className="display">{role.name}</h2>
         <p>{role.description}</p>
         <dl>
@@ -142,55 +143,10 @@ function RoleDetail({ role, onClose }: { role: RoleDefinition; onClose: () => vo
   );
 }
 
-function RolePortrait({ role }: { role: RoleDefinition }) {
-  const art = ROLE_ART[role.id];
+function RoleSymbol({ role }: { role: RoleDefinition }) {
   return (
-    <span className="roles-portrait" data-faction={profileFaction(role.faction)}>
-      {art ? (
-        <img src={art} alt="" />
-      ) : (
-        <FactionIcon faction={profileFaction(role.faction)} className="roles-mark" />
-      )}
-      <RoleEmblem id={role.id} />
-    </span>
-  );
-}
-
-function RoleEmblem({ id }: { id: string }) {
-  const mark =
-    id === "seer" ? (
-      <>
-        <path d="M15.2 6.2a6.6 6.6 0 1 0 0 11.6" />
-        <path d="M6.4 12c1.4-2 3-3 4.8-3s3.4 1 4.8 3c-1.4 2-3 3-4.8 3s-3.4-1-4.8-3Z" />
-        <circle cx="11.2" cy="12" r="1.05" fill="currentColor" stroke="none" />
-      </>
-    ) : id === "doctor" ? (
-      <>
-        <path d="M10 3.6h4M11.2 3.6v2.6L9 10.2a3.2 3.2 0 0 0 2.8 4.7h.4a3.2 3.2 0 0 0 2.8-4.7L12.8 6.2V3.6" />
-        <path d="M9.4 12.2h5.2" />
-      </>
-    ) : id === "detective" ? (
-      <>
-        <circle cx="10.2" cy="10.2" r="4.6" />
-        <path d="m13.6 13.6 4.2 4.2" />
-        <circle cx="8.8" cy="9.6" r=".7" fill="currentColor" stroke="none" />
-        <circle cx="11.8" cy="9.6" r=".7" fill="currentColor" stroke="none" />
-      </>
-    ) : id === "roleblocker" ? (
-      <>
-        <circle cx="7.2" cy="8" r="2.1" />
-        <path d="m9 9.2 7.2 7.2M14.2 14.6h2.3M14.2 16.6h1.7" />
-        <path d="M16.4 6.4 8.6 15.6" />
-        <circle cx="16.6" cy="6.2" r="1.15" />
-        <circle cx="14.2" cy="8.8" r="1.15" />
-      </>
-    ) : null;
-
-  if (!mark) return null;
-
-  return (
-    <span className="roles-emblem" aria-hidden="true">
-      <svg viewBox="0 0 24 24">{mark}</svg>
+    <span className="roles-symbol" data-faction={profileFaction(role.faction)}>
+      <RoleIcon role={role} />
     </span>
   );
 }
