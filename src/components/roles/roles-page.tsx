@@ -13,6 +13,7 @@ import {
 
 const ROLE_ART: Partial<Record<string, string>> = {
   villager: "/roles/villager.jpg",
+  seer: "/roles/seer.jpg",
 };
 
 export function RolesPage({ onBack }: { onBack: () => void }) {
