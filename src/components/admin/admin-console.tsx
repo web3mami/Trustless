@@ -278,9 +278,9 @@ function SectionBody({
     case "moderation":
       return <ModerationSection admin={admin} />;
     case "roles":
-      return <RolesFactionsSection mode="roles" />;
+      return <RolesFactionsSection mode="roles" admin={admin} />;
     case "factions":
-      return <RolesFactionsSection mode="factions" />;
+      return <RolesFactionsSection mode="factions" admin={admin} />;
     case "achievements":
       return <AchievementsSection />;
     case "analytics":

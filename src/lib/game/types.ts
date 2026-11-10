@@ -80,6 +80,8 @@ export type RoleDefinition = {
   actionPriority: number;
   enabled: boolean;
   votePower: number;
+  /** When set, votePower applies only after this player reveals during the day. */
+  revealActivatesVote?: boolean;
   blockable: boolean;
   blocksVillageWin: boolean;
   winEvaluator: WinEvaluator;
@@ -95,6 +97,8 @@ export type EnginePlayer = {
   alive: boolean;
   /** Null means the role has no limited charge. */
   chargesLeft: number | null;
+  /** Set when a daytime reveal has made this player's vote power active. */
+  revealed?: boolean;
 };
 
 export type NightAction = {

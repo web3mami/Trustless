@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { assignRoles, viewFor } from "./assign";
 import { ROLES_BY_ID, TEST_ROSTER } from "./catalog";
-import { resolveNight } from "./resolve";
+import { resolveDay, resolveNight } from "./resolve";
+import { validateDayAction, validateNightAction } from "./validate";
 import type { EnginePlayer, NightAction } from "./types";
 import { evaluateWins, resolveVote } from "./wins";
 
@@ -160,5 +161,49 @@ describe("assignment", () => {
     assert.deepEqual(idsSeen, ["guardian-werewolf", "roleblocker-werewolf", "seer-werewolf"]);
     assert.equal(JSON.stringify(view).includes("serial-killer"), false);
     assert.equal(JSON.stringify(view).includes("fool"), false);
+  });
+});
+
+describe("mayor", () => {
+  function seat(id: string, roleId = "villager"): EnginePlayer {
+    return { id, name: id, roleId, alive: true, chargesLeft: roleId === "mayor" ? 1 : null };
+  }
+
+  const reveal = {
+    id: "reveal",
+    actorId: "mayor",
+    type: "special" as const,
+    scope: "personal" as const,
+    targets: [] as string[],
+  };
+
+  it("counts as one vote until the daytime reveal", () => {
+    const ballots = [
+      { voterId: "mayor", targetId: "a" },
+      { voterId: "b", targetId: "mayor" },
+    ];
+    const hidden = resolveVote([seat("mayor", "mayor"), seat("a"), seat("b")], ballots);
+    assert.equal(hidden.eliminatedId, null);
+
+    const shown = resolveVote(
+      [seat("mayor", "mayor"), seat("a"), seat("b")].map((player) =>
+        player.id === "mayor" ? { ...player, revealed: true } : player,
+      ),
+      ballots,
+    );
+    assert.equal(shown.eliminatedId, "a");
+  });
+
+  it("reveals during the day and cannot reveal at night", () => {
+    const day = resolveDay([seat("mayor", "mayor"), seat("a")], [reveal], {
+      day: 1,
+      voteResolved: false,
+    });
+    assert.equal(day.players.find((player) => player.id === "mayor")?.revealed, true);
+    assert.equal(day.announcements[0], "mayor reveals themself as the Mayor.");
+    const night = validateNightAction(day.players, reveal);
+    assert.equal(night.ok, false);
+    const again = validateDayAction(day.players, reveal, { day: 1, voteResolved: false });
+    assert.equal(again.ok, false);
   });
 });

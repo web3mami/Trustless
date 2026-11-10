@@ -36,6 +36,17 @@ export function validateDayAction(
   if (role.phase !== "day" && role.phase !== "both") {
     return { ok: false, reason: "This role has no day action." };
   }
+  if (role.revealActivatesVote) {
+    if (action.type !== role.actionType || action.scope !== role.actionScope) {
+      return { ok: false, reason: "That action does not belong to this role." };
+    }
+    if (actor.revealed) return { ok: false, reason: "You have already revealed." };
+    if (action.targets.length > 0) return { ok: false, reason: "You reveal yourself." };
+    if (role.charges !== null && (actor.chargesLeft ?? 0) <= 0) {
+      return { ok: false, reason: "No charges left." };
+    }
+    return { ok: true };
+  }
   if (context.day < 1 || (context.day === 1 && !context.voteResolved)) {
     return { ok: false, reason: "Day abilities open after the Day 1 vote." };
   }

@@ -77,7 +77,8 @@ export function resolveVote(
     const voter = players.find((player) => player.id === ballot.voterId);
     const target = players.find((player) => player.id === ballot.targetId);
     if (!voter?.alive || !target?.alive || voter.id === target.id) continue;
-    const power = roles[voter.roleId]?.votePower ?? 1;
+    const role = roles[voter.roleId];
+    const power = !role || (role.revealActivatesVote && !voter.revealed) ? 1 : role.votePower;
     weight.set(target.id, (weight.get(target.id) ?? 0) + power);
   }
 

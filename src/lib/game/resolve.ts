@@ -173,9 +173,10 @@ export function resolveDay(
   actions: NightAction[],
   context: { day: number; voteResolved: boolean },
   roles: Record<string, RoleDefinition> = ROLES_BY_ID,
-): { players: EnginePlayer[]; intel: PrivateIntel[]; deaths: string[] } {
+): { players: EnginePlayer[]; intel: PrivateIntel[]; deaths: string[]; announcements: string[] } {
   const intel: PrivateIntel[] = [];
   const deaths: string[] = [];
+  const announcements: string[] = [];
   const next = players.map((player) => ({ ...player }));
 
   for (const action of actions) {
@@ -196,6 +197,10 @@ export function resolveDay(
         text: targetRole ? `${target!.name} is the ${targetRole.name}.` : "Nothing answers.",
       });
     }
+    if (role.revealActivatesVote) {
+      actor.revealed = true;
+      announcements.push(`${actor.name} reveals themself as the ${role.name}.`);
+    }
     if (role.id === "vigilante" && action.choice === "kill") {
       const target = next.find((player) => player.id === action.targets[0]);
       if (target?.alive) {
@@ -205,7 +210,7 @@ export function resolveDay(
     }
   }
 
-  return { players: next, intel, deaths };
+  return { players: next, intel, deaths, announcements };
 }
 
 function readAction(

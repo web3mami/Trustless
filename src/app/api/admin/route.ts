@@ -20,6 +20,7 @@ import {
   listRestrictions,
 } from "@/lib/admin/server/data";
 import { adminFailure, adminJson, readJson } from "@/lib/admin/server/http";
+import { listRoleDefinitions } from "@/lib/admin/server/roles";
 import { readAllSettings, readSettings } from "@/lib/admin/server/settings";
 
 export const runtime = "nodejs";
@@ -94,6 +95,9 @@ export async function GET(request: Request) {
       case "factions":
         await requireAdmin(request, "content.view");
         return adminJson(await getFactionsAndRoles());
+      case "role-definitions":
+        await requireAdmin(request, "content.view");
+        return adminJson({ roles: await listRoleDefinitions() });
       case "analytics":
         await requireAdmin(request, "analytics.view");
         return adminJson({ analytics: await getAnalytics() });

@@ -3878,6 +3878,12 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 }
 
 .admin-span-2 { grid-column: 1 / -1; }
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
 .admin-check {
   display: flex !important;
   align-items: center;
@@ -4054,22 +4060,25 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 }
 
 .roles-page {
-  width: min(1040px, calc(100% - 20px));
+  box-sizing: border-box;
+  width: min(1040px, calc(100% - 12px));
+  min-height: 100dvh;
   margin: 0 auto;
-  padding: 52px 0 24px;
+  padding: 46px 0 16px;
 }
 
 .roles-head {
   display: flex;
+  flex: none;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .roles-head .display {
   margin: 0;
-  font-size: 32px;
+  font-size: 28px;
   line-height: 0.9;
 }
 
@@ -4080,17 +4089,22 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 .roles-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.roles-grid > li {
+  min-width: 0;
+}
+
 .roles-card {
   display: grid;
-  align-content: start;
+  grid-template-rows: auto auto;
   gap: 0;
   width: 100%;
+  height: auto;
   padding: 0;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--faction, currentColor), transparent 35%);
@@ -4101,12 +4115,13 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 
 .roles-card .roles-portrait {
   aspect-ratio: 1 / 1;
+  height: auto;
 }
 
 .roles-card-copy {
   display: grid;
   gap: 2px;
-  padding: 6px 6px 7px;
+  padding: 4px 5px 5px;
   border-top: 2px solid var(--faction, currentColor);
 }
 
@@ -4150,7 +4165,11 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 
 @media (min-width: 800px) {
   .roles-page {
+    height: auto;
+    max-height: none;
     padding-top: 72px;
+    padding-bottom: 36px;
+    overflow: visible;
   }
 
   .roles-head {
@@ -4168,15 +4187,20 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   }
 
   .roles-grid {
+    flex: none;
+    grid-template-rows: none;
     gap: 14px;
   }
 
   .roles-card {
+    height: auto;
+    grid-template-rows: none;
     border-radius: 10px;
   }
 
   .roles-card .roles-portrait {
     aspect-ratio: 4 / 5;
+    height: auto;
   }
 
   .roles-card-copy {

@@ -11,7 +11,7 @@ import {
   StatusBadge,
   dateTime,
 } from "@/components/admin/ui";
-import { FACTION_NAME, ROLES, profileFaction } from "@/lib/game";
+import { RoleEditor } from "@/components/admin/sections/role-editor";
 import { FACTION_LABEL, type Faction } from "@/lib/roles";
 import { REPORT_CATEGORIES, RESTRICTION_KINDS, type AdminIdentity, type MatchRecord, type Page, type Report, type Restriction } from "@/lib/admin/types";
 import {
@@ -589,11 +589,21 @@ function StatsTable({
   );
 }
 
-export function RolesFactionsSection({ mode }: { mode: "roles" | "factions" }) {
-  const [tab, setTab] = useState<"performance" | "definitions">("performance");
+export function RolesFactionsSection({
+  mode,
+  admin,
+}: {
+  mode: "roles" | "factions";
+  admin: AdminIdentity;
+}) {
+  const [tab, setTab] = useState<"performance" | "definitions">(mode === "roles" ? "definitions" : "performance");
   const [factions, setFactions] = useState<FactionStat[]>([]);
   const [roles, setRoles] = useState<RoleStatRow[]>([]);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    setTab(mode === "roles" ? "definitions" : "performance");
+  }, [mode]);
 
   useEffect(() => {
     adminGet(mode)
@@ -617,7 +627,7 @@ export function RolesFactionsSection({ mode }: { mode: "roles" | "factions" }) {
         </button>
       </div>
       {tab === "definitions" ? (
-        mode === "roles" ? <RoleDefinitions /> : <FactionDefinitions />
+        mode === "roles" ? <RoleEditor admin={admin} /> : <FactionDefinitions />
       ) : !factions.length && !roles.length ? (
         <EmptyState title="No completed results yet" />
       ) : mode === "factions" ? (
@@ -658,50 +668,6 @@ function FactionDefinitions() {
       </table>
       <p className="admin-note">Editing names, icons and colours needs the content store. Performance above uses completed matches.</p>
     </Panel>
-  );
-}
-
-function RoleDefinitions() {
-  return (
-    <div className="admin-stack">
-      <p className="admin-note">
-        This is the canonical 16-player roster. Names, factions, charges, and resolution priority are locked here so a partial edit cannot break the night.
-      </p>
-      {(["village", "werewolf", "solo", "neutral"] as const).map((faction) => (
-        <Panel key={faction} title={FACTION_NAME[faction]}>
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Role</th>
-                <th>Category</th>
-                <th>Phase</th>
-                <th>Action</th>
-                <th>Targets</th>
-                <th>Charges</th>
-                <th>Priority</th>
-                <th>Win</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ROLES.filter((role) => role.faction === faction).map((role) => (
-                <tr key={role.id}>
-                  <td>
-                    <FactionBadge faction={profileFaction(faction)} /> {role.name}
-                  </td>
-                  <td>{role.category}</td>
-                  <td>{role.phase}</td>
-                  <td>{role.actionType ? `${role.actionScope} ${role.actionType}` : "None"}</td>
-                  <td>{role.targetType === "none" ? "None" : role.maxTargets}</td>
-                  <td>{role.charges ?? "Unlimited"}</td>
-                  <td>{role.actionPriority}</td>
-                  <td>{role.winCondition}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
-      ))}
-    </div>
   );
 }
 

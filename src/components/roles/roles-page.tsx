@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FactionIcon } from "@/components/faction-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -19,8 +19,28 @@ const ROLE_ART: Partial<Record<string, string>> = {
 };
 
 export function RolesPage({ onBack }: { onBack: () => void }) {
+  const [roles, setRoles] = useState<RoleDefinition[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = ROLES.find((role) => role.id === selectedId) ?? null;
+  const roster = roles ?? [];
+  const selected = roster.find((role) => role.id === selectedId) ?? null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/roles", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("unavailable");
+        return response.json() as Promise<{ roles?: unknown }>;
+      })
+      .then((body) => {
+        if (!Array.isArray(body.roles)) throw new Error("unavailable");
+        setRoles(body.roles.filter(isRole));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setRoles(ROLES.filter((role) => role.enabled));
+      });
+    return () => controller.abort();
+  }, []);
 
   return (
     <main className="room account roles-page">
@@ -36,8 +56,9 @@ export function RolesPage({ onBack }: { onBack: () => void }) {
         </button>
       </header>
 
+      {roles === null ? <p className="lede">Loading the table…</p> : roster.length === 0 ? <p className="lede">No roles are on the table.</p> : null}
       <ul className="roles-grid">
-        {ROLES.filter((role) => role.enabled).map((role) => (
+        {roster.filter((role) => role.enabled).map((role) => (
           <li key={role.id}>
             <button
               type="button"
@@ -58,6 +79,17 @@ export function RolesPage({ onBack }: { onBack: () => void }) {
 
       {selected ? <RoleDetail role={selected} onClose={() => setSelectedId(null)} /> : null}
     </main>
+  );
+}
+
+function isRole(value: unknown): value is RoleDefinition {
+  if (!value || typeof value !== "object") return false;
+  const role = value as Partial<RoleDefinition>;
+  return (
+    typeof role.id === "string" &&
+    typeof role.name === "string" &&
+    typeof role.faction === "string" &&
+    typeof role.abilityDescription === "string"
   );
 }
 

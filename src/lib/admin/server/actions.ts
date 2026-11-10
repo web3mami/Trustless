@@ -19,7 +19,10 @@ import {
   type AdminContext,
 } from "@/lib/admin/server/auth";
 import { db, prepareAdmin } from "@/lib/admin/server/db";
+import { listRoleDefinitions } from "@/lib/admin/server/roles";
 import { readSettings } from "@/lib/admin/server/settings";
+import { parseRoleInput } from "@/lib/game/role-input";
+import type { RoleDefinition } from "@/lib/game/types";
 import { toFaction } from "@/lib/roles";
 
 type Query = NeonQueryPromise<false, false>;
@@ -510,7 +513,83 @@ const ACTIONS: Record<string, ActionDefinition> = {
       };
     },
   },
+  "role.create": {
+    permission: "roles.edit",
+    async run(admin, payload) {
+      const role = roleFromPayload(payload.role);
+      const existing = await listRoleDefinitions();
+      if (existing.some((item) => item.id === role.id)) invalid("A role with that id already exists.");
+      if (existing.some((item) => item.name.toLowerCase() === role.name.toLowerCase())) {
+        invalid("A role with that name already exists.");
+      }
+      return {
+        queries: [
+          db()`
+            INSERT INTO role_definitions (id, definition, sort_order, updated_by_name)
+            VALUES (
+              ${role.id},
+              ${JSON.stringify(role)}::jsonb,
+              (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM role_definitions),
+              ${admin.username}
+            )
+          `,
+        ],
+        audit: { action: "role.create", targetType: "role", targetId: role.id, next: role },
+        result: { role },
+      };
+    },
+  },
+  "role.update": {
+    permission: "roles.edit",
+    async run(admin, payload) {
+      const id = roleId(payload.id);
+      const role = roleFromPayload(payload.role);
+      if (role.id !== id) invalid("The role id cannot change. Add a new role instead.");
+      const existing = await listRoleDefinitions();
+      const previous = existing.find((item) => item.id === id);
+      if (!previous) throw new AdminError(404, "not-found", "That role no longer exists.");
+      if (existing.some((item) => item.id !== id && item.name.toLowerCase() === role.name.toLowerCase())) {
+        invalid("A role with that name already exists.");
+      }
+      return {
+        queries: [
+          db()`
+            UPDATE role_definitions
+            SET definition = ${JSON.stringify(role)}::jsonb, updated_at = now(), updated_by_name = ${admin.username}
+            WHERE id = ${id}
+          `,
+        ],
+        audit: { action: "role.update", targetType: "role", targetId: id, previous, next: role },
+        result: { role },
+      };
+    },
+  },
+  "role.delete": {
+    permission: "roles.edit",
+    async run(_admin, payload) {
+      const id = roleId(payload.id);
+      const existing = await listRoleDefinitions();
+      const previous = existing.find((item) => item.id === id);
+      if (!previous) throw new AdminError(404, "not-found", "That role no longer exists.");
+      return {
+        queries: [db()`DELETE FROM role_definitions WHERE id = ${id}`],
+        audit: { action: "role.delete", targetType: "role", targetId: id, previous },
+        result: { id },
+      };
+    },
+  },
 };
+
+function roleId(value: unknown) {
+  if (typeof value !== "string" || !/^[a-z][a-z0-9-]{1,39}$/.test(value)) invalid("Choose a role.");
+  return value;
+}
+
+function roleFromPayload(value: unknown): RoleDefinition {
+  const parsed = parseRoleInput(value);
+  if (typeof parsed === "string") invalid(parsed);
+  return parsed;
+}
 
 export async function runAdminAction(admin: AdminContext, name: unknown, payload: unknown) {
   if (typeof name !== "string" || !(name in ACTIONS)) invalid("Unknown action.");

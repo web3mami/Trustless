@@ -78,7 +78,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     id: "design",
     label: "Game Design",
     sections: [
-      { id: "roles", label: "Roles", permission: "content.view", status: "partial", summary: "Role performance from completed matches.", needs: "The role editor needs roles to move from the game code into the database." },
+      { id: "roles", label: "Roles", permission: "content.view", status: "live", summary: "Add, edit and remove roles on the roster." },
       { id: "factions", label: "Factions", permission: "content.view", status: "partial", summary: "Village, Werewolf, Solo and Neutral performance.", needs: "Editing faction text and colours needs the content store." },
       {
         id: "game-modes", label: "Game Modes", permission: "config.view", status: "planned",
