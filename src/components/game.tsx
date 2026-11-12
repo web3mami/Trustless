@@ -547,18 +547,18 @@ function Table({
   }
 
   function pickSeat(id: string) {
-    if (!table || locked) return;
+    if (!table || locked || needed === 0) return;
     const seat = table.seats.find((entry) => entry.id === id);
     if (!seat) return;
     const valid = intent === "vote" ? seat.validVote : seat.validAbility;
-    setPicked((current) => {
-      const existing = current.indexOf(id);
-      if (existing >= 0) return current.filter((entry) => entry !== id);
-      if (!valid || needed === 0) return current;
-      if (current.length >= needed) return current;
-      return [...current, id];
-    });
+    if (!valid || picked.includes(id)) return;
+    const next = [...picked, id];
     setError("");
+    if (next.length < needed) {
+      setPicked(next);
+      return;
+    }
+    void postTable({ op: "act", intent, targets: next });
   }
 
   return (
@@ -645,11 +645,7 @@ function Table({
               setPicked([]);
               setError("");
             }}
-            onClear={() => {
-              setPicked([]);
-              setError("");
-            }}
-            onConfirm={() => void postTable({ op: "act", intent, targets: picked })}
+            onUse={() => void postTable({ op: "act", intent, targets: [] })}
           />
         </aside>
       </div>
@@ -717,6 +713,8 @@ function Table({
   );
 }
 
+const TAP_SLOP = 10;
+
 const BOARD_LOOKS: { gender: Gender; hair: string; coat: string; skin: string }[] = [
   { gender: "male", hair: "#1b2832", coat: "#3e5964", skin: "#c48b6a" },
   { gender: "female", hair: "#2a160f", coat: "#6d4c3d", skin: "#e0b08a" },
@@ -760,6 +758,7 @@ function SeatButton({
   onPick: () => void;
 }) {
   const appearance = BOARD_LOOKS[look] ?? BOARD_LOOKS[0];
+  const point = useRef<{ x: number; y: number; swipe: boolean } | null>(null);
   return (
     <button
       type="button"
@@ -771,7 +770,25 @@ function SeatButton({
       aria-pressed={order > 0}
       aria-label={`${seat.name}${you ? ", you" : ""}${seat.alive ? "" : ", dead"}`}
       disabled={disabled}
-      onClick={onPick}
+      onPointerDown={(event) => {
+        point.current = { x: event.clientX, y: event.clientY, swipe: false };
+      }}
+      onPointerMove={(event) => {
+        const start = point.current;
+        if (!start) return;
+        const dx = event.clientX - start.x;
+        const dy = event.clientY - start.y;
+        if (dx * dx + dy * dy > TAP_SLOP * TAP_SLOP) start.swipe = true;
+      }}
+      onClick={(event) => {
+        const swipe = point.current?.swipe ?? false;
+        point.current = null;
+        if (swipe) {
+          event.preventDefault();
+          return;
+        }
+        onPick();
+      }}
     >
       <span className="board-avatar">
         <span className="board-face">
@@ -831,8 +848,7 @@ function ActionPanel({
   pending,
   error,
   onIntent,
-  onClear,
-  onConfirm,
+  onUse,
 }: {
   table: TableView | null;
   intent: TableIntent;
@@ -841,14 +857,19 @@ function ActionPanel({
   pending: boolean;
   error: string;
   onIntent: (intent: TableIntent) => void;
-  onClear: () => void;
-  onConfirm: () => void;
+  onUse: () => void;
 }) {
   if (!table) return <section className="action"><p className="hint">Taking your seat…</p></section>;
   const names = picked.map((id) => table.seats.find((seat) => seat.id === id)?.name ?? id);
-  const acted = intent === "ability" && table.you.submitted;
-  const ready = picked.length === needed && !acted;
   const title = intent === "vote" ? "Vote" : table.you.roleName;
+  const prompt =
+    needed === 0
+      ? "This action has no target."
+      : pending
+        ? "Submitting…"
+        : names.length
+          ? `${names.join(", ")}. Tap the next avatar.`
+          : "Tap an avatar.";
   return (
     <section className="action">
       {table.you.intents.length > 1 ? (
@@ -862,23 +883,14 @@ function ActionPanel({
       ) : null}
       <h2>{title}</h2>
       <p>{intent === "vote" ? "Vote for one living player." : table.you.ability}</p>
-      <p>
-        {needed === 0
-          ? "No target. Confirm when you are ready."
-          : names.length
-            ? names.join(", ")
-            : "Tap an avatar."}
-      </p>
+      <p>{prompt}</p>
       <ResultView result={intent === "ability" || intent === "vote" ? table.result : null} />
       {error ? <p className="hint">{error}</p> : null}
-      <div className="action-row">
-        <button className="primary" type="button" disabled={!ready || pending} onClick={onConfirm}>
-          {intent === "vote" ? "Confirm vote" : "Confirm"}
+      {needed === 0 ? (
+        <button className="primary" type="button" disabled={pending || table.you.submitted} onClick={onUse}>
+          Use ability
         </button>
-        <button className="text-btn" type="button" disabled={picked.length === 0 || pending} onClick={onClear}>
-          Clear
-        </button>
-      </div>
+      ) : null}
     </section>
   );
 }

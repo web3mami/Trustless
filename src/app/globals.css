@@ -572,6 +572,7 @@ input:focus-visible {
   background: transparent;
   color: inherit;
   text-align: left;
+  touch-action: manipulation;
 }
 
 .board-avatar {
@@ -4503,9 +4504,10 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 
 .roles-symbol svg,
 .roles-icon {
-  width: min(46%, 64px);
-  height: auto;
+  width: auto;
+  height: 86%;
   aspect-ratio: 1;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
 .roles-shade {
