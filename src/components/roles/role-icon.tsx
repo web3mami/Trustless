@@ -21,15 +21,39 @@ export const ROLE_ICON_OPTIONS: { id: string; label: string }[] = [
   { id: "governor", label: "Town seal" },
   { id: "tracker", label: "Footprints" },
   { id: "medium", label: "Candle" },
-  { id: "alpha-werewolf", label: "Fang crown" },
-  { id: "seer-werewolf", label: "Wolf eye" },
-  { id: "guardian-werewolf", label: "Fanged shield" },
-  { id: "roleblocker-werewolf", label: "Claw and chain" },
+  { id: "alpha-werewolf", label: "Alpha wolf" },
+  { id: "seer-werewolf", label: "Hooded wolf" },
+  { id: "guardian-werewolf", label: "Shield wolf" },
+  { id: "roleblocker-werewolf", label: "Chained wolf" },
   { id: "serial-killer", label: "Dagger" },
   { id: "rugpuller", label: "Trickster mask" },
 ];
 
+const PAINTED_ICONS = new Set([
+  "villager",
+  "chain-analyst",
+  "investigator",
+  "auditor",
+  "doctor",
+  "aegis",
+  "roleblocker",
+  "vigilante",
+  "governor",
+  "tracker",
+  "medium",
+  "alpha-werewolf",
+  "seer-werewolf",
+  "guardian-werewolf",
+  "roleblocker-werewolf",
+  "serial-killer",
+  "rugpuller",
+]);
+
 export function RoleIcon({ role, className }: { role: IconRole; className?: string }) {
+  const key = role.icon || role.id;
+  if (PAINTED_ICONS.has(key)) {
+    return <img src={`/role-icons/${key}.png`} alt="" className={className ?? "roles-icon"} draggable={false} />;
+  }
   const mark = MARKS[role.icon ?? ""] ?? MARKS[role.id] ?? fallback(role);
   if (mark === "faction") {
     return <FactionIcon faction={profileFaction(role.faction)} className={className ?? "roles-icon"} />;
@@ -174,33 +198,43 @@ const MARKS: Record<string, ReactNode> = {
   ),
   "alpha-werewolf": (
     <>
-      <Paint d="M8 31h48v7H8z" fill="#2e2824" />
-      <Paint d="m12 31 7-20 7 20zm15 0L32 6l6 25zm14 0 6-18 7 18z" fill="#e4dcc8" />
-      <Paint d="m14 38 7 20 8-20zm20 0 8 20 7-20z" fill="#d4cbb8" />
+      <path d="M8 37 28 29 34 20 30 8 40 20 44 10 52 22c8 0 12 12 8 22l-4 12-18 4-16-8-8-7z" fill="#3c3330" stroke="#f3ecdf" strokeWidth="2.3" strokeLinejoin="round" />
+      <path d="M8 37 26 31 28 41 18 49 10 43z" fill="#d9d0c4" />
+      <path d="M8 37 13 35 13 40.6z" fill="#1a1210" />
+      <path d="M36 31c2-2.2 6.4-2 8 .4 1.4 2.2-.6 4.8-3.6 4.6-2.4 0-4.8-2.4-4.4-5z" fill="#1a1210" />
+      <path d="M40 30.2v5" stroke="#c47832" strokeWidth="1.7" strokeLinecap="round" />
     </>
   ),
   "seer-werewolf": (
     <>
-      <Ring cx={32} cy={32} r={30} hole={26.8} fill="#6e3330" />
-      <Paint d="m16 22-3-8 6 5zm32-3 6-7-1 9z" fill="#4a2422" />
-      <Paint d="M10 34 22 22h20l12 12-12 12H22z" fill="#e7e1d6" />
-      <Paint d="M18 34 26 26h12l8 8-8 10H26z" fill="#8a4034" />
-      <Paint d="M30.5 27h3v16h-3z" fill="#16120f" />
+      <path d="M24 30c-2-12 10-22 26-20 12 2 16 14 14 26l2 18-22 6-20-8-8-8c-2-6 2-10 8-14z" fill="#2c2426" stroke="#f3ecdf" strokeWidth="2.3" strokeLinejoin="round" />
+      <path d="M22 32c2-10 12-16 22-12" fill="none" stroke="#7a4a38" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M14 38 30 30 34 22 38 12 46 24c6 2 8 12 4 20l-2 10-16 4-14-8z" fill="#5c534c" stroke="#f3ecdf" strokeWidth="2.1" strokeLinejoin="round" />
+      <path d="M14 38 28 32 28 42 18 48 14 42z" fill="#d4cbb8" />
+      <path d="M14 38 18 36.2 18 41.2z" fill="#1a1210" />
+      <path d="M34 32c1.6-2 5.2-1.8 6.4.2 1 1.8-.4 4-2.8 3.8-2.2-.2-4-2-3.6-4z" fill="#16120f" />
+      <path d="M37.2 31.2v4.6" stroke="#e7e1d6" strokeWidth="1.4" strokeLinecap="round" />
     </>
   ),
   "guardian-werewolf": (
     <>
-      <Paint d="M32 4 56 16v18c0 13-24 22-24 22S8 47 8 34V16z" fill="#5e6672" />
-      <Paint d="M32 12 48 20v12c0 8-16 14-16 14S16 40 16 32V20z" fill="#a8b0bb" />
-      <Paint d="M29 22h6L32 44z" fill="#e4dcc8" />
+      <path d="M8 34 26 26 30 18 26 6 36 18 40 8 48 20c8 0 12 12 8 22l-2 12-16 4-14-8-12-6z" fill="#3e4652" stroke="#f3ecdf" strokeWidth="2.3" strokeLinejoin="round" />
+      <path d="M8 34 24 28 26 38 16 46 9 40z" fill="#c5ced6" />
+      <path d="M8 34 12.2 32.2 12.2 37.4z" fill="#1a1210" />
+      <path d="M32 29c2-2.2 6.2-2 7.6.4 1.2 2-.8 4.6-3.4 4.4-2.4 0-4.6-2.2-4.2-4.8z" fill="#1a1210" />
+      <path d="M35.6 28.4v4.8" stroke="#e4dcc8" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M36 30h16v10q0 10-8 16-8-6-8-16z" fill="#9aa3ae" stroke="#f3ecdf" strokeWidth="2" strokeLinejoin="round" />
     </>
   ),
   "roleblocker-werewolf": (
     <>
-      <Paint d="M10 50C16 38 15 24 8 12l6-1c8 14 8 28 3 40zm14 2c6-12 5-26-2-36l6 1c7 12 7 26 2 38zm14-3c5-12 6-24 2-34l6 2c3 12 1 24-3 36z" fill="#5c2e2c" />
-      <Ring cx={50} cy={22} r={7} hole={3.4} fill="#8b929e" />
-      <Ring cx={55} cy={36} r={6.2} hole={3} fill="#8b929e" />
-      <Paint d="m45 26 7 5-2.4 2.6-7-5z" fill="#5e6672" />
+      <path d="M14 36 32 28 36 20 32 8 42 20 46 10 54 22c8 0 10 12 6 22l-4 12-18 4-16-8-8-6z" fill="#5c2e2c" stroke="#f3ecdf" strokeWidth="2.3" strokeLinejoin="round" />
+      <path d="M14 36 30 30 32 40 22 48 15 42z" fill="#d4cbb8" />
+      <path d="M14 36 18.4 34 18.4 39.4z" fill="#1a1210" />
+      <path d="M38 31c2-2.2 6.2-2 7.6.4 1.2 2-.6 4.6-3.4 4.4-2.4 0-4.6-2.4-4.2-4.8z" fill="#1a1210" />
+      <path d="M41.6 30.2v5" stroke="#e4dcc8" strokeWidth="1.5" strokeLinecap="round" />
+      <ellipse cx="24" cy="44" rx="8" ry="4.6" fill="none" stroke="#c5ced6" strokeWidth="2.3" transform="rotate(-28 24 44)" />
+      <ellipse cx="33" cy="49" rx="7" ry="4" fill="none" stroke="#8b929e" strokeWidth="2.2" transform="rotate(18 33 49)" />
     </>
   ),
   "serial-killer": (
@@ -232,9 +266,16 @@ const MARKS: Record<string, ReactNode> = {
   ),
   aegis: (
     <>
-      <Paint d="M16 6 42 16v14c0 10-26 16-26 16S4 40 4 30V16z" fill="#3e4652" />
-      <Paint d="M30 18 58 32v14c0 10-28 14-28 14S14 54 14 44V32z" fill="#8b929e" />
-      <Paint d="M32 26 46 34v6c0 5-14 8-14 8s-14-3-14-8v-6z" fill="#c5ced6" />
+      <Paint d="M8 7h28v17q0 16-14 28-14-12-14-28z" fill="#3e4652" />
+      <path
+        d="M12 16l3.4 4.4-1.7 3.6 3.5 3.4M15.4 20.4l2.2-2"
+        fill="none"
+        stroke="#14181e"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Paint d="M22 14h30v18q0 16-15 28-15-12-15-28z" fill="#9aa3ae" />
     </>
   ),
 };

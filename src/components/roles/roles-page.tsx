@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FactionIcon } from "@/components/faction-icon";
 import { RoleIcon } from "@/components/roles/role-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -10,15 +9,6 @@ import {
   profileFaction,
   type RoleDefinition,
 } from "@/lib/game";
-import type { RoleCategory } from "@/lib/game/types";
-
-const CATEGORY_LABEL: Record<RoleCategory, string> = {
-  investigative: "Investigative",
-  protective: "Protective",
-  support: "Support",
-  killing: "Killing",
-  special: "Special",
-};
 
 export function RolesPage({ onBack }: { onBack: () => void }) {
   const [roles, setRoles] = useState<RoleDefinition[] | null>(null);
@@ -69,14 +59,7 @@ export function RolesPage({ onBack }: { onBack: () => void }) {
               onClick={() => setSelectedId(role.id)}
             >
               <RoleSymbol role={role} />
-              <span className="roles-card-copy">
-                <strong>{role.name}</strong>
-                <span className="roles-card-meta">
-                  <FactionIcon faction={profileFaction(role.faction)} className="roles-faction-badge" />
-                  <span>{role.category ? CATEGORY_LABEL[role.category] : ""}</span>
-                </span>
-                <p>{role.abilityDescription}</p>
-              </span>
+              <strong>{role.name}</strong>
             </button>
           </li>
         ))}

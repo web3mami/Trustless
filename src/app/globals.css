@@ -3764,6 +3764,7 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   height: 18px;
   margin-right: 6px;
   vertical-align: -4px;
+  object-fit: contain;
   color: var(--faction, currentColor);
 }
 
@@ -4329,61 +4330,20 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 }
 
 .roles-card .roles-symbol {
-  aspect-ratio: 5 / 3;
+  aspect-ratio: 1;
   height: auto;
 }
 
-.roles-card-copy {
-  display: grid;
-  gap: 1px;
-  padding: 4px 5px 5px;
-  border-top: 2px solid var(--faction, currentColor);
-}
-
 .roles-card strong {
-  overflow: hidden;
-  font-size: 11px;
-  line-height: 1.15;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.roles-card-meta {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-}
-
-.roles-faction-badge {
-  width: 11px;
-  height: 11px;
-  flex: none;
-  color: var(--faction, currentColor);
-}
-
-.roles-card-meta > span {
   display: block;
   overflow: hidden;
-  margin: 0;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  padding: 6px 4px 7px;
+  border-top: 2px solid var(--faction, currentColor);
+  font-size: 11px;
+  line-height: 1.15;
+  text-align: center;
   white-space: nowrap;
   text-overflow: ellipsis;
-  opacity: 0.66;
-}
-
-.roles-card p {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 0;
-  font-size: 9px;
-  line-height: 1.25;
-  opacity: 0.82;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 @media (min-width: 800px) {
@@ -4422,38 +4382,13 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
   }
 
   .roles-card .roles-symbol {
-    aspect-ratio: 5 / 3;
-    height: auto;
-  }
-
-  .roles-card-copy {
-    gap: 4px;
-    padding: 10px 12px 12px;
-    border-top-width: 3px;
+    aspect-ratio: 1;
   }
 
   .roles-card strong {
-    font-size: 16px;
-  }
-
-  .roles-faction-badge {
-    width: 14px;
-    height: 14px;
-  }
-
-  .roles-card-meta > span {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-  }
-
-  .roles-card p {
-    display: -webkit-box;
-    overflow: hidden;
-    font-size: 13px;
-    line-height: 1.35;
-    opacity: 0.82;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    padding: 10px 8px 12px;
+    border-top-width: 3px;
+    font-size: 15px;
   }
 
 }
@@ -4503,10 +4438,12 @@ html[data-resolved-theme="day"] .profile-xp-track > span {
 }
 
 .roles-symbol svg,
+.roles-symbol img,
 .roles-icon {
   width: auto;
   height: 86%;
   aspect-ratio: 1;
+  object-fit: contain;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
 }
 
